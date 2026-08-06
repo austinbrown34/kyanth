@@ -1,0 +1,628 @@
+# shout
+
+Push-to-talk dictation for macOS that runs **entirely on your machine**. Hold a key, speak,
+release — the text lands in whatever field you were typing in.
+
+Built as a free replacement for [Voicy](https://usevoicy.com/) ($102/yr), which is a thin
+client over a hosted Whisper API: every dictation leaves your machine, there is no offline
+mode, and no custom vocabulary. shout transcribes locally in ~150–300 ms, works on a plane,
+and never sends your audio anywhere. See [PROPOSAL.md](PROPOSAL.md) for the full
+competitive analysis and architecture.
+
+---
+
+## Requirements
+
+- **macOS 13+** on **Apple Silicon** (developed on macOS 26.5 / M1 Max)
+- [`uv`](https://docs.astral.sh/uv/) — `brew install uv`
+- [`whisper.cpp`](https://github.com/ggerganov/whisper.cpp) — `brew install whisper-cpp`
+- A microphone
+
+## Install
+
+```bash
+git clone https://github.com/austinbrown34/shout.git
+cd shout
+./install.sh
+open -a ~/Applications/shout.app
+```
+
+`install.sh` checks prerequisites, downloads the speech model (~141 MB, too large for git),
+stages a self-contained runtime under `~/Library/Application Support/shout/`, builds
+`shout.app` into `~/Applications`, and registers it to start at login.
+
+### First run — grant three permissions
+
+macOS will prompt for these. All three are required:
+
+| Permission | Why |
+|---|---|
+| **Microphone** | to hear you |
+| **Accessibility** | to type into other apps |
+| **Input Monitoring** | to see the hotkey |
+
+`System Settings → Privacy & Security → …`
+
+Grant them to **`shout.app`** — not to your terminal. The app polls for the grants and goes
+live without a relaunch.
+
+> Without Accessibility, `CGEventPost` silently does nothing — no error, no exception. The
+> app would look like it was working while nothing ever reached your document. shout checks
+> explicitly and reports it instead of failing quietly.
+
+---
+
+## Using it
+
+**Hold Right-Option, speak, release.** The text is pasted into the focused field and your
+previous clipboard is restored.
+
+### Activation modes
+
+Set in **Settings & History…** — from the menu-bar icon, or by launching shout again from
+your Applications folder.
+
+| Mode | Behavior |
+|---|---|
+| **Hold to talk** | hold the key while speaking, release to transcribe |
+| **Toggle on / off** | press once to start, press again to stop |
+
+### Choosing a shortcut
+
+Click the shortcut button, then press any key or combination. The button previews the chord
+as you build it and commits when you release everything — so `⌃ + Right ⌥` is recordable,
+not just single keys. **Press order doesn't matter and there's no timing requirement.** Esc
+cancels.
+
+**Modifier-only keys make the best shortcuts.** Right-Option, Right-Command and fn can't be
+typed on their own, so binding one steals nothing from other apps. A regular combination
+like ⇧⌘V is intercepted system-wide and will shadow whatever else uses it.
+
+### Sound cues
+
+The menu-bar icon is easily hidden (see [Troubleshooting](#troubleshooting)), so every state
+change has a distinct tone. Pitch carries the meaning:
+
+| Cue | Sound | Means |
+|---|---|---|
+| start | rising | recording |
+| stop | falling | pasted into the focused field |
+| clipboard | two rising | nothing to paste into — text is on the clipboard |
+| ignored | low blip | that press didn't count (too short, or no speech) |
+| error | two low blips | transcription failed |
+
+Toggle from the menu (**Sound cues**).
+
+### Clipboard fallback
+
+If no text field is focused, the transcription is **left on the clipboard** rather than
+discarded — press ⌘V. This is the "I thought I was clicked into the document but I wasn't"
+case, and it no longer loses your dictation.
+
+### History
+
+Every transcription is kept in the **History** tab. Double-click a row, or select it and
+press **Copy**, to put it back on the clipboard. A ⧉ marks entries that went to the
+clipboard rather than into a document. Stored locally in `history.jsonl`, capped at 500
+entries. **Clear All** deletes it.
+
+### Menu-bar icon
+
+| Icon | Meaning |
+|---|---|
+| mic | ready / transcribing |
+| mic + red dot | recording |
+| mic + slash | disabled, error, or waiting for permissions |
+
+---
+
+## Configuration
+
+Two files, both under `~/Library/Application Support/shout/`.
+
+**`settings.json`** — written by the Settings window: shortcut, mode, sound.
+
+**`config.yaml`** — hand-edited: model, VAD, vocabulary, per-app formatting. Open it from
+the menu (**Edit Config…**), then **Reload Config**. The two are separate so the GUI never
+rewrites and reformats your commented YAML.
+
+### Custom vocabulary
+
+Whisper has no vocabulary API, so shout corrects terms after transcription. This fixes most
+jargon errors — and it's something Voicy offers at no price point.
+
+```yaml
+vocabulary:
+  replacements:
+    "cubectl": "kubectl"       # seed from what the model ACTUALLY emits
+    "get hub": "GitHub"
+    "type script": "TypeScript"
+```
+
+Seed these from the daemon's log line, not from guesses. The first version of this config
+guessed `"cube control"`; the model actually emits `Cubectl`, so the rule never fired.
+
+### Per-app formatting
+
+```yaml
+profiles:
+  Slack:   {capitalize_first: false, strip_trailing_period: true}
+  Mail:    {capitalize_first: true,  strip_trailing_period: false}
+  default: {capitalize_first: true,  strip_trailing_period: false}
+```
+
+### Switching models
+
+```yaml
+model: models/ggml-base.en.bin     # or ggml-small.en.bin, ggml-large-v3-turbo-q5_0.bin
+```
+
+Then **Restart Model Server** from the menu. Bigger is not automatically better —
+see [Benchmarks](#benchmarks).
+
+---
+
+## Updating and removing
+
+```bash
+git pull && ./install.sh     # keeps your config, settings and history
+./uninstall.sh               # removes app + login item, keeps the runtime
+./uninstall.sh --purge       # also deletes the runtime and history
+```
+
+---
+
+## Troubleshooting
+
+**No menu-bar icon.** Your menu bar is full. macOS silently drops status items when there is
+no room and reports no error. Free a slot in `System Settings → Control Center`, ⌘-drag an
+icon off the bar, or use [Ice](https://github.com/jordanbaird/Ice) (free). Sound cues work
+regardless.
+
+**Nothing happens when I press the key.** Check
+`~/Library/Application Support/shout/logs/app.log` — it records permissions, input device
+and every capture. No `● recording` line means the hotkey isn't reaching the app; confirm
+Input Monitoring is granted to `shout.app`.
+
+**A tap does nothing in hold mode.** Presses under 0.25 s are discarded. Hold longer, or
+switch to toggle mode. The `ignored` cue tells you this happened.
+
+**It transcribes but nothing appears.** The text is on your clipboard — press ⌘V. The
+`clipboard` cue (two rising tones) means no text field was focused.
+
+**Model server won't start.** `brew install whisper-cpp`, then **Restart Model Server**.
+See `logs/server.log`.
+
+---
+
+## Development
+
+```bash
+uv sync
+./run.sh          # terminal daemon, logs to stdout — no bundle, no install
+```
+
+Runs in place from the repo, unaffected by the installed copy.
+
+```bash
+uv run bench.py         # WER + latency across models
+uv run make_icons.py    # regenerate app icon and menu-bar glyphs
+```
+
+### Layout
+
+| File | Role |
+|---|---|
+| `shout.py` | daemon: event tap, recorder, worker, paste |
+| `menubar.py` | menu-bar app: server lifecycle, state, history |
+| `hotkey.py` | binding representation, matching, chord recorder |
+| `settings_ui.py` | Cocoa settings + history window |
+| `history.py` | persistent transcription history |
+| `sounds.py` | generated audio cues |
+| `vad.py` | silence trimming and the speech gate |
+| `postprocess.py` | noise filtering, vocabulary, per-app formatting |
+| `config.py` · `config.yaml` | configuration |
+| `bench.py` · `make_icons.py` | model comparison, icon generation |
+| `install.sh` · `uninstall.sh` · `build_app.sh` | packaging |
+| `run.sh` · `serve.sh` | development entry points |
+| `spike.py` | Phase 0 proof-of-concept (superseded) |
+
+---
+
+## Benchmarks
+
+**Latency**, key release → text on screen, `ggml-base.en` on M1 Max:
+
+| Utterance | Transcription |
+|---|---|
+| 1 s | 149 ms |
+| 2 s | 199 ms |
+| 3 s | 208 ms |
+| 5 s | 289 ms |
+| 10 s | 456 ms |
+
+Plus ~50 ms for clipboard + ⌘V.
+
+**Model comparison** (`uv run bench.py`, 8 clips of prose and technical jargon):
+
+| Model | Mean WER | Mean latency | Size |
+|---|---|---|---|
+| **base.en** | **3.5%** | **71 ms** | 141 MB |
+| small.en | 3.5% | 163 ms | 465 MB |
+| large-v3-turbo-q5_0 | 3.5% | 475 ms | 547 MB |
+
+Identical accuracy, 6.7× the latency. The two residual errors were a jargon term (fixed by
+the vocabulary layer) and a number-formatting difference the WER metric miscounts — neither
+is fixable by a bigger model. Caveat: these clips come from macOS `say`, which is
+unrealistically clean. Re-run `bench.py` on your own voice before treating it as settled.
+
+---
+
+## Privacy
+
+Audio never leaves the machine. Transcription runs against a local `whisper-server` bound to
+`127.0.0.1`. History is a plain local file you can delete at any time. No telemetry, no
+account, and no network call beyond the one-time model download.
+
+---
+
+## Roadmap
+
+- **Local LLM cleanup** — `llama-server` for filler removal and rewriting
+- **Selection-rewrite hotkey** — copy selection, transform by voice, paste back
+- **Vocabulary editor in Settings** — currently requires editing `config.yaml`
+- **Parakeet comparison** — a transducer model would not hallucinate on silence
+
+---
+
+## Engineering notes
+
+What actually broke while building this. Kept because most of it is non-obvious macOS
+behavior that would cost the next person the same time it cost me.
+
+### Phase 0 results
+
+Measured on M1 Max / 64 GB, macOS 26.5.1, `ggml-base.en`, 5.6s clip.
+
+| Stage | Status | Notes |
+|---|---|---|
+| Mic capture | **works** | `sounddevice`, 16 kHz mono. Mic permission inherited from the terminal. |
+| Transcription | **works** | Exact transcription of the test clip. |
+| Blank handling | **works** | Silence returns `[BLANK_AUDIO]`, not hallucinated text. Filtered in `clean()`. |
+| Clipboard read/write | **works** | `NSPasteboard`. |
+| Frontmost-app detection | **works** | `NSWorkspace` — the hook for per-app profiles. |
+| Synthetic ⌘V injection | **blocked** | Needs Accessibility. See below. |
+
+#### Finding 1 — the resident server is mandatory
+
+| Path | Latency |
+|---|---|
+| `whisper-server`, resident | **222–245 ms** |
+| `whisper-cli`, warm | 500–1570 ms |
+| `whisper-cli`, cold | **up to 17.9 s** |
+
+`ggml_metal_library_init` costs 11–13 s to compile Metal shaders, and the cache is not
+reliably warm — a run 60 s after a 500 ms run took 17.9 s. Spawning a subprocess per
+utterance is not viable for interactive dictation. `serve.sh` is the real path;
+`whisper-cli` is only a fallback so the spike degrades instead of crashing.
+
+#### Finding 2 — Accessibility fails silently
+
+Without the Accessibility grant, `CGEventPost` **returns success and does nothing**. No
+exception, no error code. A dictation app would appear to work — recording, transcribing,
+logging correct text — while nothing ever lands in the target field. This is why
+`preflight()` checks `AXIsProcessTrusted()` explicitly before attempting a paste.
+
+**Identifying the right app is the hard part.** The grant attaches to the *responsible
+process* — the ancestor `.app` bundle — which is neither `python` nor whatever window is
+frontmost. `NSWorkspace.frontmostApplication()` reported `iTerm2` here while the actual
+owner was `cmux.app`; granting to the wrong one looks identical to not granting at all.
+
+`preflight()` now walks the process tree and names it. It skips the interpreter's own
+`Python.framework/Resources/Python.app` shim, which otherwise matches first and is never
+the grantee.
+
+**To unblock:**
+
+1. `uv run spike.py --check` — read the `Grant it to:` line.
+2. `System Settings > Privacy & Security > Accessibility` → add that app.
+3. Re-run `--check`. If still `NOT GRANTED`, fully quit and reopen that app — the grant
+   is read at launch.
+
+Or run `uv run spike.py --request-access` to trigger the system dialog, which adds the
+correct app automatically.
+
+Note for Phase 4: once this is a bundled `.app`, the grant attaches to `shout.app` itself
+and this dev-time indirection disappears.
+
+---
+
+#### Finding 3 — the tap callback must never block
+
+macOS disables an event tap whose callback runs long, and it stays disabled until
+explicitly re-enabled. Transcription therefore runs on a worker thread; the tap callback
+only flips a flag and enqueues audio. `Daemon.on_event` also handles
+`kCGEventTapDisabledByTimeout` / `ByUserInput` by re-enabling the tap, so a transient stall
+doesn't silently kill dictation for the rest of the session.
+
+The audio device is likewise opened once at startup and left running — `start()` only
+flips a flag. Opening the device on the hot path costs ~100 ms.
+
+---
+
+### Phase 2 results
+
+#### Finding 4 — a bigger model buys nothing here
+
+`uv run bench.py` — 8 clips, mixed prose and technical jargon:
+
+| Model | Mean WER | Mean latency | Size |
+|---|---|---|---|
+| **base.en** | **3.5%** | **71 ms** | 141 MB |
+| small.en | 3.5% | 163 ms | 465 MB |
+| large-v3-turbo-q5_0 | 3.5% | 475 ms | 547 MB |
+
+Identical accuracy, 6.7× the latency. Inspecting the only two non-zero-WER cases explains
+why:
+
+1. `kubectl` → `Cubectl` / `Cubectal`. A **vocabulary** problem. Scaling the model does not
+   fix a term it was never trained to spell; the vocabulary pass does, for free.
+2. "three hundred milliseconds" → "300 milliseconds". **Not an error** — a numeric
+   formatting difference that WER scores as two substitutions over a ten-word reference.
+
+So `base.en` is the default. This contradicts the a-priori recommendation in
+[PROPOSAL.md](PROPOSAL.md#33-stt-engine--the-one-real-decision), which favored a larger
+model and Parakeet.
+
+**Caveat:** these clips come from macOS `say`, which is unrealistically clean. Real speech —
+accents, speed, background noise — is where larger models normally earn their cost. Re-run
+`bench.py` against recordings of your own voice before treating this as settled. Switching
+is one line in `config.yaml`.
+
+#### Finding 5 — seed the vocabulary from real output, not from guesses
+
+The initial config guessed `"cube control": kubectl`. The model actually emits `Cubectl` and
+`Cubectal`, so the rule never fired. Watch the daemon's log line, copy the wrong spelling
+verbatim, add it. Guessing at mishearings does not work.
+
+#### VAD
+
+Energy-based leading/trailing silence trim. On a realistic sloppy push-to-talk capture
+(1.2 s of silence either side), it removed 2.25 s and cut transcription from 208 ms to
+151 ms — a 27% saving. It degrades to passthrough on empty, all-silence, and sub-frame
+input rather than returning nothing.
+
+Deliberately not `silero-vad`: that adds a torch dependency and ~30 ms of inference to save
+~20 ms of transcription.
+
+---
+
+### Phase 4 results
+
+Three failures, all invisible without instrumentation. Each cost a debugging cycle and
+each would have bitten again later.
+
+#### Finding 6 — `~/Documents` is TCC-protected, so the runtime can't live there
+
+An app launched by LaunchServices gets **no access to `~/Documents`, `~/Desktop`, or
+`~/Downloads`** without an explicit grant. A terminal-run process inherits the terminal's
+grant and works fine; the same code in a bundle dies at interpreter startup:
+
+```
+PermissionError: [Errno 1] Operation not permitted:
+  '/Users/…/Documents/code/shout/.venv/pyvenv.cfg'
+```
+
+Verified with a throwaway probe app: `~/Documents/code/shout/config.yaml` → DENIED,
+`~/Library/Application Support` → READABLE.
+
+Hence `install.sh` stages a runtime into `~/Library/Application Support/shout` rather than
+running in place. This is also why `build_app.sh` takes the runtime prefix as a parameter.
+
+#### Finding 7 — a modal before `app.run()` hangs the app invisibly
+
+`rumps.alert()` called from `start()` — before `app.run()` starts NSApplication — produces
+an alert that is **modal but never rendered**. The result: a live process, a menu-bar icon,
+no window, and no way to interact. It looked like a mysterious hang; the timeline gave it
+away (server up at t=3s, down at t=6s, process still alive).
+
+Startup problems now go into the menu's status line and the app stays usable. For
+Accessibility specifically it calls `AXIsProcessTrustedWithOptions` to trigger *macOS's*
+own prompt, then polls every 2s — so granting takes effect without a relaunch.
+
+#### Finding 8 — launchd's PATH is not your PATH
+
+Testing `open -a shout.app` from a shell is misleading: the app inherits the shell's PATH.
+At real login, launchd provides only `/usr/bin:/bin:/usr/sbin:/sbin`, so a bare
+`whisper-server` resolves during testing and silently fails after a reboot.
+`find_server_binary()` checks absolute Homebrew paths first. Verified under
+`env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin`.
+
+The same bug then reappeared one level down: `whisper-server --convert` shells out to
+`ffmpeg`, which also wasn't on the child's PATH, and the server exited at startup with
+`sh: ffmpeg: command not found`. `--convert` is now dropped entirely — we always hand it
+16 kHz mono WAV — and the subprocess gets an explicit PATH anyway.
+
+#### Finding 9 — `SIGTERM` is swallowed, so instances stack
+
+`sys.exit(0)` from a signal handler raises `SystemExit` on the main thread, which the
+NSApplication run loop absorbs — the process keeps running. Every `pkill` + relaunch during
+development therefore added another live instance, each holding its own microphone stream
+and event tap. **Five had accumulated** before it was noticed, and inspecting "the app"
+meant inspecting whichever stale one `pgrep | head` happened to return.
+
+Two fixes: signal handlers and the Quit item now call `os._exit(0)` after cleanup, and
+`acquire_single_instance_lock()` takes an `flock` on `.shout.lock` at startup so a second
+launch exits immediately. This matters beyond development — launchd at login plus a manual
+`open -a` is exactly the same collision.
+
+#### Finding 10 — one UI error killed dictation for the whole session
+
+`rumps.MenuItem` creates its backing `NSMenu` lazily on first insert, so
+`history_menu.clear()` raises `AttributeError: 'NoneType' has no attribute
+'removeAllItems'` on an empty submenu — precisely its state during the **first**
+transcription. That exception propagated out of `worker()` and killed the thread.
+
+The symptom was perfect camouflage: the first dictation pasted correctly, then every
+subsequent hold recorded, queued, and returned nothing. The hotkey, tap, mic, and model
+were all fine. Nothing was logged, and the menu still read "Ready".
+
+Three fixes:
+
+- `worker()` wraps each job in `try/except` and reports `error` state. A UI bug must never
+  be able to stop transcription.
+- `_refresh_history()` checks `_menu is not None` before clearing.
+- `on_result` and `set_state` now marshal to the main thread via `AppHelper.callAfter`.
+  They were being called from the worker thread, and AppKit is main-thread-only — the
+  crash was the visible symptom of a threading violation that could equally have corrupted
+  state silently.
+
+Paste now happens *before* the UI callback, so text reaches the field even if the menu
+update fails.
+
+#### Finding 11 — buffered stdout makes a bundled app look dead
+
+The launcher redirects stdout to `logs/app.log`. Python block-buffers stdout to a file, so
+nothing appeared until the buffer filled or the process died. Diagnostics printed at
+startup and on every dictation were invisible; the Finding 10 traceback only showed up
+because *stderr* is unbuffered.
+
+This cost more debugging time than the bug it was hiding. The launcher now runs
+`python -u`, and the app logs its model, permission states, input device, and every
+utterance.
+
+#### Finding 12 — a fixed VAD threshold eats quiet speech
+
+The absolute cutoff (RMS 0.012) was tuned against loud test clips. On a real capture
+peaking at 0.058 it trimmed a 4.2 s utterance to 1.0 s, and *"Testing shout end to end from
+the menu bar app"* transcribed as **"Test."** — an accuracy failure that looks exactly like
+a bad model.
+
+`vad.trim()` now scales to each utterance's own peak: `max(floor, min(threshold,
+peak_rms × 0.08))`. Never demand more than a fraction of the loudest frame; keep a floor so
+silence isn't read as one very quiet speaker. The same clip now keeps all 4.7 s and
+transcribes in full.
+
+#### A near-miss: Input Monitoring
+
+Listening to key events requires **Input Monitoring** (`kTCCServiceListenEvent`), a
+*separate* grant from Accessibility. When it's missing, `AXIsProcessTrusted()` still
+returns `True` and `CGEventTapCreate()` still returns a valid tap — it simply never fires.
+Accessibility covers *posting* events (the paste); Input Monitoring covers *receiving* them
+(the hotkey).
+
+It turned out to be already granted here, so it was not the cause of this bug —
+but `install_tap()` now checks both and `request_permissions()` prompts for both, because
+the failure mode is indistinguishable from a working app.
+
+#### Why `open -a` and not the binary directly
+
+The LaunchAgent runs `/usr/bin/open -a shout.app` rather than the inner executable.
+Going through LaunchServices preserves the bundle identity that TCC keys permissions on;
+exec'ing `Contents/MacOS/shout` directly launches a bare process and loses the grant.
+
+`KeepAlive` is `false` deliberately — otherwise launchd relaunches the app every time you
+quit it from the menu.
+
+---
+
+### Phase 5 notes
+
+#### Left and right modifiers need the device-dependent flag bits
+
+The generic masks (`kCGEventFlagMaskAlternate` and friends) are set by *either* side of a
+modifier, so they can't tell right-Option from left-Option. `hotkey.py` matches on the
+`NX_DEVICE*KEYMASK` bits instead, which is what makes "Right ⌥" a distinct binding that
+leaves left-Option free for normal typing.
+
+#### fn is excluded from matching
+
+macOS sets `kCGEventFlagMaskSecondaryFn` on F-keys and arrow keys, and whether it appears
+depends on the keyboard's "use F1..F12 as function keys" setting. Requiring it would make a
+binding work on one machine and silently fail on another, so `Hotkey.MATCH_MASK` covers
+only ⇧⌃⌥⌘. This surfaced as an F13 binding that never fired: the event carried
+`0x20800000`, the binding expected `0`.
+
+#### Chord detection must be state-based, not trigger-keyed
+
+The first implementation filtered events down to the binding's trigger keycode, then asked
+whether the chord was satisfied. That made **press order significant**: for
+`Right ⌥ + Right ⌘` (trigger ⌘), pressing ⌥ then ⌘ fired, while ⌘ then ⌥ discarded the ⌥
+event and **never fired at all**. In toggle mode this reads as a shortcut that only works
+if you "get it just right" — and the user unconsciously learns one specific order.
+
+`on_event` now evaluates the chord's *state* on every `flagsChanged` event and acts on the
+edges, latched by `chord_down`. Any press order works, with no timing requirement: the
+chord fires the moment the last of its keys goes down, however far apart the presses are.
+In hold mode, releasing *any* key of the chord ends the capture.
+
+`rebind()` clears the latch — a stale `chord_down = True` would swallow the first press
+after a settings change.
+
+Toggle mode additionally debounces: a second press within `TOGGLE_DEBOUNCE_SEC` (0.40 s) is
+treated as a finger bouncing off a key rather than an intentional stop. Without it, a
+ragged chord ends the recording immediately and the audio is discarded as "too short".
+
+#### Recording a chord means committing on release, not on press
+
+The first recorder committed as soon as a modifier went *down*. That made multi-key
+combinations impossible to enter: reaching for ⇧⌘V, the ⇧ press ended the recording and the
+binding became "Left ⇧". `ChordRecorder` instead grows the chord while keys go down and
+commits once they have all come back up, so the user can build it at their own pace. A
+regular key still commits immediately, since nothing further can be added to it.
+
+For a modifier-only chord the *last* key pressed becomes the trigger and the earlier ones
+become required co-modifiers — "⌃ + right-⌥" fires on the right-Option edge while Control
+is held. Co-modifiers are stored as device bits, so it stays distinct from "⌃ + left-⌥".
+
+`ChordRecorder` lives in `hotkey.py` rather than the window so it can be tested without a
+GUI.
+
+#### The focused-element check needs the per-app element
+
+`AXUIElementCreateSystemWide()` + `kAXFocusedUIElementAttribute` returns
+`kAXErrorCannotComplete` (-25204) here even with Accessibility granted.
+`AXUIElementCreateApplication(pid)` on the frontmost app works reliably — verified against
+TextEdit (`AXTextArea`), Safari (`AXTextField`), Notes (`AXTextArea`) and the Electron-based
+cmux (`AXTextArea`), all correctly settable, versus Finder (`AXOutline`, not settable).
+
+Because a false negative would stop pasting into an app entirely, the paste is only skipped
+on an explicit *not editable*; an undeterminable answer still pastes and additionally keeps
+the text on the clipboard.
+
+#### Whisper hallucinates on silence, and it gets pasted
+
+Three consecutive **silent** test captures produced *"Decided to kill Trump."* and
+*"TPSA can't get the Utah."* — fluent, confident, entirely invented from room noise, and
+headed straight for whatever window had focus. This is the encoder-decoder failure mode
+[PROPOSAL.md](PROPOSAL.md#33-stt-engine--the-one-real-decision) predicted, and the adaptive
+VAD made it worse: scaling the threshold to the clip's own peak means a clip that is *all*
+noise gets a very low threshold and passes through intact.
+
+`vad.has_speech()` now gates the model. It requires ≥120 ms of frames above a floor of
+`max(0.008, p10_rms × 3)`. Measured on this mic, a quiet room peaks at frame-RMS 0.0058
+with **zero** frames above 0.008, while conversational speech holds 1820 ms above it — a
+wide margin. The floor references the clip's *10th percentile*, not its median: speech
+drags the median up, so a median-scaled gate would reject real dictation.
+
+Whisper also narrates non-speech as `(dog barking)`, `(upbeat music)`, `[door closes]`.
+`strip_noise()` drops any result that is entirely enclosed in brackets, while leaving a
+genuine mid-sentence "(like this)" alone.
+
+#### Auto-repeat had to be filtered
+
+Holding a regular key produces repeated `keyDown` events. In **toggle** mode each repeat
+would have flipped recording on and off many times per second. `on_event` drops events
+whose `kCGKeyboardEventAutorepeat` field is set.
+
+#### Re-opening a running app sends a delegate message, not a new process
+
+Double-clicking shout in Applications does not start a second process — LaunchServices
+activates the existing one and sends `applicationShouldHandleReopen:hasVisibleWindows:`.
+rumps owns the `NSApplication` delegate, so the handler is grafted on with an
+`objc.Category` (whose class must be named exactly like the class it extends). The
+distributed-notification path is kept as a fallback for the case where a second process
+really does start.
+
+---
+

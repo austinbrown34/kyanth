@@ -1,0 +1,64 @@
+# shout configuration. Edit and restart the daemon.
+
+model: models/ggml-base.en.bin
+
+audio:
+  # Trim silence before sending to the model. Shorter audio = lower latency,
+  # and whisper is less likely to invent text during long trailing silence.
+  vad: true
+  vad_threshold: 0.012      # RMS below this counts as silence
+  vad_pad_ms: 150           # keep this much either side of detected speech
+
+# Custom vocabulary. Whisper has no term-injection API, so this is a
+# post-transcription pass — but it fixes the majority of jargon errors,
+# and Voicy offers nothing equivalent at any price.
+vocabulary:
+  # Case-insensitive whole-phrase replacement, longest match first.
+  #
+  # Seed these from what the model ACTUALLY emits, not from what you guessed
+  # it would mishear. Run the daemon, watch the log line, add the wrong
+  # spelling verbatim. "cube control" was a bad guess — base.en emits
+  # "Cubectl" and "Cubectal".
+  replacements:
+    "cubectl": "kubectl"
+    "cubectal": "kubectl"
+    "cube control": "kubectl"
+    "cube cuddle": "kubectl"
+    "post gres": "Postgres"
+    "postgres": "Postgres"
+    "anthropic": "Anthropic"
+    "claude code": "Claude Code"
+    "get hub": "GitHub"
+    "github": "GitHub"
+    "type script": "TypeScript"
+    "java script": "JavaScript"
+    "node js": "Node.js"
+    "python three": "Python 3"
+
+  # Terms to protect from the replacements above (exact, case-sensitive).
+  protect: []
+
+# Per-app formatting. Matched against NSWorkspace frontmost app name.
+# Voicy applies one global style; this is a cheap differentiator.
+profiles:
+  Slack:
+    capitalize_first: false
+    strip_trailing_period: true
+  Messages:
+    capitalize_first: false
+    strip_trailing_period: true
+  iTerm2:
+    capitalize_first: false
+    strip_trailing_period: true
+  Terminal:
+    capitalize_first: false
+    strip_trailing_period: true
+  cmux:
+    capitalize_first: false
+    strip_trailing_period: true
+  Mail:
+    capitalize_first: true
+    strip_trailing_period: false
+  default:
+    capitalize_first: true
+    strip_trailing_period: false

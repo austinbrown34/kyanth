@@ -1,0 +1,26 @@
+# shout is a macOS-only menu-bar dictation daemon: it uses PyObjC/Quartz global
+# hotkeys (right-Option), rumps for the status item, sounddevice for capture, and
+# shells out to a local whisper-server binary, then types text into the focused
+# field via Accessibility APIs. It never serves HTTP — the only "server" in the
+# repo (serve.sh) starts whisper.cpp's local transcription backend for the daemon
+# itself, on loopback, with no browsable UI. Requires macOS Accessibility and
+# Input Monitoring grants plus a physical microphone, so it cannot run in a Linux
+# container: kind: showcase, no build/run/deps blocks.
+name: shout
+kind: showcase
+meta:
+  title: shout
+  tagline: Hold right-Option, speak, and the text lands in whatever field you were typing in.
+  stack:
+    - Python
+    - PyObjC
+    - rumps
+    - sounddevice
+    - whisper.cpp
+    - macOS
+showcase:
+  screenshots:
+    - assets/menubar-idle@2x.png
+    - assets/menubar-rec@2x.png
+    - assets/menubar-off@2x.png
+  launch: ./run.sh

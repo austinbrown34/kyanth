@@ -1,0 +1,10 @@
+.git
+node_modules
+tmp
+log
+*.log
+.env*
+.drydock/media
+dist
+build
+coverage

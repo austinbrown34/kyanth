@@ -1,0 +1,23 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Models are 141MB-547MB; install.sh downloads them on demand
+models/*.bin
+
+# Build output
+shout.app/
+assets/shout.iconset/
+assets/cue-*.wav
+
+# Runtime state — these contain your transcriptions and local settings
+history.jsonl
+settings.json
+cues/
+logs/
+.scratch/
+.shout.lock
+
+# macOS
+.DS_Store
