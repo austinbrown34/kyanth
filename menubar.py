@@ -14,6 +14,7 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 from collections import deque
 from pathlib import Path
 
@@ -29,8 +30,10 @@ import sounds
 from hotkey import MODE_HOLD
 from settings_ui import SettingsController
 
-ROOT = Path(__file__).parent
-LOGDIR = ROOT / "logs"
+import paths
+
+ROOT = paths.resources()
+LOGDIR = paths.logs()
 LOG = LOGDIR / "server.log"
 HISTORY = 8
 
@@ -38,7 +41,7 @@ HISTORY = 8
 #  this notification rather than starting a rival process.
 SHOW_SETTINGS_NOTE = "local.shout.dictation.showSettings"
 
-ASSETS = ROOT / "assets"
+ASSETS = paths.resources() / "assets"
 
 #  (image, template). Template images are recolored by macOS to match the
 #  menu bar in light/dark and while a menu is open. The recording glyph opts
@@ -52,13 +55,10 @@ ICONS = {
     "needs-permission": ("menubar-off@2x.png",  True),
 }
 
-#  launchd gives a login-time process a minimal PATH (/usr/bin:/bin:/usr/sbin:
-#  /sbin), so a bare "whisper-server" resolves when launched from a shell and
-#  silently fails after a reboot. Resolve it against real locations instead.
-SERVER_CANDIDATES = [
-    "/opt/homebrew/bin/whisper-server",
-    "/usr/local/bin/whisper-server",
-]
+#  Resolution order lives in paths.whisper_server(): the vendored copy inside
+#  the bundle first, then absolute Homebrew locations. launchd gives a
+#  login-time process a minimal PATH, so a bare name would resolve during
+#  testing and silently fail after a reboot.
 
 
 #  Re-opening a running app (double-click in Applications, `open -a`) does NOT
@@ -92,11 +92,7 @@ class _NoteProxy(NSObject):
 
 
 def find_server_binary() -> str | None:
-    for p in SERVER_CANDIDATES:
-        if Path(p).is_file():
-            return p
-    from shutil import which
-    return which("whisper-server")
+    return paths.whisper_server()
 
 
 class ServerManager:
@@ -129,15 +125,12 @@ class ServerManager:
 
         # No --convert: we always hand it 16 kHz mono WAV, and --convert makes
         # whisper-server shell out to ffmpeg, which is not on a login-time PATH.
-        # The env below is belt-and-braces for any other tool it may invoke.
-        env = dict(os.environ)
-        env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + env.get("PATH", "/usr/bin:/bin")
-
+        model = paths.model_path(self.model)
         self.proc = subprocess.Popen(
-            [binary, "-m", str(ROOT / self.model),
+            [binary, "-m", str(model),
              "--host", "127.0.0.1", "--port", str(self.port)],
             stdout=open(LOG, "a"), stderr=subprocess.STDOUT,
-            cwd=str(ROOT), env=env,
+            cwd=str(Path(binary).parent), env=paths.whisper_env(),
         )
         deadline = time.time() + timeout
         while time.time() < deadline:
@@ -169,7 +162,7 @@ class ShoutApp(rumps.App):
                          template=True, title=None, quit_button=None)
 
         self.cfg = config_mod.load()
-        self.store = history_mod.History(ROOT / "history.jsonl")
+        self.store = history_mod.History(paths.history_file())
         self.history: deque[str] = deque(maxlen=HISTORY)
         self.jobs: queue.Queue = queue.Queue()
         self.server = ServerManager(self.cfg.model, shout.SERVER_PORT)
@@ -217,18 +210,34 @@ class ShoutApp(rumps.App):
         mic = AVCaptureDevice.authorizationStatusForMediaType_(AVMediaTypeAudio)
         print(f"[start] model={self.cfg.model} mic_auth={mic} "
               f"(0=undetermined 2=denied 3=granted)")
+
+        # On a fresh install the app is a new TCC identity with no grants.
+        # Opening an input stream before asking raises and kills startup, so
+        # request first and let the retry timer pick it up once granted.
+        if mic == 0:
+            AVCaptureDevice.requestAccessForMediaType_completionHandler_(
+                AVMediaTypeAudio, lambda granted: None)
         from ApplicationServices import AXIsProcessTrusted
         print(f"[start] accessibility={AXIsProcessTrusted()} "
               f"input_monitoring={shout.input_monitoring_status()} "
               f"(0=granted 1=denied 2=undetermined)")
 
-        self.cues = sounds.Cues(ROOT / "cues", enabled=self.cfg.sound,
+        self.cues = sounds.Cues(paths.cues(), enabled=self.cfg.sound,
                                 volume=self.cfg.volume)
         print(f"[start] sound cues: {'on' if self.cfg.sound else 'off'} "
               f"(volume {self.cfg.volume})")
 
-        self.recorder = shout.Recorder(lead_skip_ms=self.cues.lead_ms)
-        print(f"[start] input device: {self.recorder._stream.device}")
+        try:
+            self.recorder = shout.Recorder(lead_skip_ms=self.cues.lead_ms)
+            print(f"[start] input device: {self.recorder._stream.device}")
+        except Exception as e:
+            # Almost always "microphone not yet granted". Stay alive and retry
+            # rather than dying before the user has answered the prompt.
+            print(f"[start] microphone unavailable: {e}")
+            self.set_state("needs-permission")
+            self.status_item.title = "Waiting for microphone access…"
+            rumps.Timer(self.retry_start, 2).start()
+            return True
         threading.Thread(
             target=shout.worker,
             args=(self.jobs, self.cfg, True, self.set_state, self.on_result,
@@ -269,6 +278,37 @@ class ShoutApp(rumps.App):
         ).addObserver_selector_name_object_(
             self._note_proxy, "handle:", SHOW_SETTINGS_NOTE, None)
 
+    def retry_start(self, timer):
+        """Poll until every grant is in place, then finish starting. Lets a
+        first-run user grant permissions without relaunching the app."""
+        from AVFoundation import AVCaptureDevice, AVMediaTypeAudio
+
+        if AVCaptureDevice.authorizationStatusForMediaType_(AVMediaTypeAudio) != 3:
+            return
+        if self.recorder is None:
+            try:
+                self.recorder = shout.Recorder(lead_skip_ms=self.cues.lead_ms)
+            except Exception:
+                return
+            threading.Thread(
+                target=shout.worker,
+                args=(self.jobs, self.cfg, True, self.set_state, self.on_result,
+                      self.cues),
+                daemon=True,
+            ).start()
+            self.daemon = shout.Daemon(
+                self.recorder, self.jobs, verbose=True, on_state=self.set_state,
+                binding=self.cfg.hotkey, mode=self.cfg.mode, cues=self.cues,
+            )
+        if self.install_tap():
+            timer.stop()
+            self._observe_show_settings()
+            self.set_state("idle")
+            print("[start] permissions granted — ready")
+            rumps.notification("shout", "Ready", "Hold your shortcut to dictate.")
+        else:
+            self.request_permissions()
+
     def install_tap(self) -> bool:
         """Both grants are required. Accessibility alone yields a tap that is
         created successfully and then never fires."""
@@ -282,6 +322,7 @@ class ShoutApp(rumps.App):
 
     def request_permissions(self):
         from ApplicationServices import (
+            AXIsProcessTrusted,
             AXIsProcessTrustedWithOptions,
             kAXTrustedCheckOptionPrompt,
         )
@@ -308,7 +349,7 @@ class ShoutApp(rumps.App):
             problems.append("Microphone denied\n"
                             "System Settings > Privacy & Security > Microphone")
 
-        model_path = ROOT / self.cfg.model
+        model_path = paths.model_path(self.cfg.model)
         if not model_path.exists():
             problems.append(f"Model not found\n{model_path}")
         elif find_server_binary() is None:
@@ -420,7 +461,7 @@ class ShoutApp(rumps.App):
                            f"{'Hold' if mode == MODE_HOLD else 'Toggle'}  {hk.label()}")
 
     def on_edit_config(self, _):
-        subprocess.run(["open", "-t", str(ROOT / "config.yaml")])
+        subprocess.run(["open", "-t", str(paths.config_file())])
 
     def on_restart_server(self, _):
         self.cfg = config_mod.load()
@@ -449,7 +490,7 @@ def acquire_single_instance_lock():
     Five had accumulated during development before this was noticed.
     """
     LOGDIR.mkdir(parents=True, exist_ok=True)
-    lock = open(ROOT / ".shout.lock", "w")
+    lock = open(paths.data() / ".shout.lock", "w")
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
@@ -460,7 +501,21 @@ def acquire_single_instance_lock():
     return lock
 
 
+def _redirect_output() -> None:
+    """A frozen bundle has no terminal, so an unredirected traceback vanishes
+    and a crash looks like "it just doesn't start". Line-buffered because
+    block-buffered output to a file stays invisible until the buffer fills."""
+    if not paths.FROZEN:
+        return
+    log = paths.logs() / "app.log"
+    stream = open(log, "a", buffering=1)
+    os.dup2(stream.fileno(), sys.stdout.fileno())
+    os.dup2(stream.fileno(), sys.stderr.fileno())
+    sys.stdout = sys.stderr = stream
+
+
 def main() -> int:
+    _redirect_output()
     lock = acquire_single_instance_lock()
     if lock is None:
         print("already running — asking the live instance to show Settings",
@@ -481,7 +536,18 @@ def main() -> int:
     signal.signal(signal.SIGTERM, cleanup)
     signal.signal(signal.SIGINT, cleanup)
 
-    app.start()
+    try:
+        app.start()
+    except Exception:
+        # A bug in startup must not take the app down: without this, a
+        # NameError on a rarely-taken permission path killed the whole app on
+        # first run, with the failure visible only in the log file.
+        traceback.print_exc()
+        app.status_item.title = "Startup failed — see Open Log"
+        try:
+            app._apply_state("error")
+        except Exception:
+            pass
     app.run()
     return 0
 

@@ -11,29 +11,28 @@ competitive analysis and architecture.
 
 ---
 
-## Requirements
-
-- **macOS 13+** on **Apple Silicon** (developed on macOS 26.5 / M1 Max)
-- [`uv`](https://docs.astral.sh/uv/) — `brew install uv`
-- [`whisper.cpp`](https://github.com/ggerganov/whisper.cpp) — `brew install whisper-cpp`
-- A microphone
-
 ## Install
 
-```bash
-git clone https://github.com/austinbrown34/shout.git
-cd shout
-./install.sh
-open -a ~/Applications/shout.app
-```
+### From the release DMG (recommended)
 
-`install.sh` checks prerequisites, downloads the speech model (~141 MB, too large for git),
-stages a self-contained runtime under `~/Library/Application Support/shout/`, builds
-`shout.app` into `~/Applications`, and registers it to start at login.
+1. Download `shout-1.0.0.dmg`
+2. Open it and drag **shout** to Applications
+3. Launch it from Applications
+
+That's the whole install. The app is self-contained — Python, the speech model,
+and the transcription engine all ship inside it. **No Homebrew, no Python, no `uv`,
+nothing to build.**
+
+Requires **macOS 13+ on Apple Silicon**.
+
+> **If macOS says it "cannot be opened because Apple cannot check it for malicious
+> software":** the build wasn't notarized. Right-click the app → **Open** → **Open**.
+> You only do this once. Builds made with `./build_release.sh --notarize` don't show it.
 
 ### First run — grant three permissions
 
-macOS will prompt for these. All three are required:
+The app asks for these on first launch and waits until you grant them. It does **not**
+need a restart afterwards.
 
 | Permission | Why |
 |---|---|
@@ -41,14 +40,59 @@ macOS will prompt for these. All three are required:
 | **Accessibility** | to type into other apps |
 | **Input Monitoring** | to see the hotkey |
 
-`System Settings → Privacy & Security → …`
+`System Settings → Privacy & Security → …` — the entries appear as **shout** with the
+app icon.
 
-Grant them to **`shout.app`** — not to your terminal. The app polls for the grants and goes
-live without a relaunch.
+> Without Accessibility, `CGEventPost` silently does nothing — no error, no exception.
+> The app would look like it was working while nothing reached your document. shout
+> checks explicitly and reports it in the menu rather than failing quietly.
 
-> Without Accessibility, `CGEventPost` silently does nothing — no error, no exception. The
-> app would look like it was working while nothing ever reached your document. shout checks
-> explicitly and reports it instead of failing quietly.
+---
+
+## Building from source
+
+Only needed if you're changing the code or producing your own release.
+
+```bash
+brew install uv whisper-cpp        # build-time only; not needed by the built app
+git clone https://github.com/austinbrown34/shout.git
+cd shout
+./build_release.sh                 # -> dist/shout-<version>.dmg
+```
+
+| Flag | Effect |
+|---|---|
+| *(none)* | signs with your Developer ID; first launch elsewhere needs right-click → Open |
+| `--notarize` | also submits to Apple and staples, so it opens cleanly anywhere |
+| `--adhoc` | ad-hoc signature, local testing only |
+
+`build_release.sh` vendors `whisper-server` and its dylib closure, downloads the model,
+freezes the app with PyInstaller, signs inside-out, and builds the DMG.
+
+### Notarizing
+
+Store credentials once, then build:
+
+```bash
+xcrun notarytool store-credentials shout-notary \
+  --apple-id you@example.com --team-id YOURTEAMID \
+  --password <app-specific-password>      # appleid.apple.com -> Sign-In and Security
+
+./build_release.sh --notarize
+```
+
+An app-specific password is not your Apple ID password — generate one at
+[appleid.apple.com](https://appleid.apple.com).
+
+### Running from source, without packaging
+
+```bash
+uv sync
+./run.sh          # terminal daemon, logs to stdout
+```
+
+Permissions attach to your *terminal* in this mode, not to shout — see
+[Engineering notes](#engineering-notes).
 
 ---
 
@@ -164,11 +208,21 @@ see [Benchmarks](#benchmarks).
 
 ## Updating and removing
 
+**Update:** drag the new build over the old one in Applications. Your config, settings
+and history live in `~/Library/Application Support/shout` and are untouched.
+
+Because the app is signed with a stable Developer ID, macOS keeps your permission grants
+across updates. (An ad-hoc signature changes identity on every build, which would make
+you re-grant every time.)
+
+**Remove:**
+
 ```bash
-git pull && ./install.sh     # keeps your config, settings and history
-./uninstall.sh               # removes app + login item, keeps the runtime
-./uninstall.sh --purge       # also deletes the runtime and history
+rm -rf /Applications/shout.app
+rm -rf ~/Library/Application\ Support/shout    # also deletes history and settings
 ```
+
+Then remove the **shout** entries under `System Settings → Privacy & Security`.
 
 ---
 
@@ -198,16 +252,13 @@ See `logs/server.log`.
 ## Development
 
 ```bash
-uv sync
-./run.sh          # terminal daemon, logs to stdout — no bundle, no install
+uv run bench.py            # WER + latency across models
+uv run make_icons.py       # regenerate app icon and menu-bar glyphs
+uv run pyinstaller shout.spec --noconfirm    # bundle only, no signing
+./vendor_whisper.sh vendor models/ggml-base.en.bin   # vendor + verify standalone
 ```
 
-Runs in place from the repo, unaffected by the installed copy.
-
-```bash
-uv run bench.py         # WER + latency across models
-uv run make_icons.py    # regenerate app icon and menu-bar glyphs
-```
+See [Building from source](#building-from-source) for the full release flow.
 
 ### Layout
 
@@ -223,7 +274,10 @@ uv run make_icons.py    # regenerate app icon and menu-bar glyphs
 | `postprocess.py` | noise filtering, vocabulary, per-app formatting |
 | `config.py` · `config.yaml` | configuration |
 | `bench.py` · `make_icons.py` | model comparison, icon generation |
-| `install.sh` · `uninstall.sh` · `build_app.sh` | packaging |
+| `paths.py` | bundle-vs-user-data path resolution |
+| `build_release.sh` · `shout.spec` · `entitlements.plist` | signed release build |
+| `vendor_whisper.sh` | vendors whisper-server + dylib closure |
+| `install.sh` · `uninstall.sh` · `build_app.sh` | legacy source install (pre-DMG) |
 | `run.sh` · `serve.sh` | development entry points |
 | `spike.py` | Phase 0 proof-of-concept (superseded) |
 
@@ -279,6 +333,38 @@ account, and no network call beyond the one-time model download.
 
 What actually broke while building this. Kept because most of it is non-obvious macOS
 behavior that would cost the next person the same time it cost me.
+
+### Packaging notes
+
+**Permissions showed "Python 3.14", not "shout".** The bundle's executable was a shell
+script that `exec`'d the framework Python. `exec` *replaces* the process, so the running
+process literally was `/opt/homebrew/.../Python.app/Contents/MacOS/Python` — and TCC names
+entries by executable. Freezing with PyInstaller makes `Contents/MacOS/shout` a real
+Mach-O binary that embeds libpython, so the process, the permission entry, and the icon
+are all shout's.
+
+**A signed bundle is read-only.** The app wrote config, history, logs and cues next to its
+own code. Inside a signed `.app` that invalidates the signature and macOS refuses to
+launch. `paths.py` now separates read-only bundle resources from
+`~/Library/Application Support/shout`.
+
+**`install_name_tool` invalidates code signatures, and the failure is silent.** After
+rewriting a Mach-O's install names, macOS kills the process with SIGKILL and *no output
+at all* — empty stdout, empty stderr, exit 137. Everything must be re-signed afterwards,
+dependencies before the binaries that load them. Same inside-out rule applies when signing
+the bundle: nested code first, or the outer signature seals unsigned nested binaries and
+Gatekeeper rejects the app.
+
+**ggml loads its compute backends at runtime** as separate `.so` files, not as linked
+libraries — `otool -L` doesn't mention them. They're placed next to `whisper-server` in
+the bundle so ggml finds them without a Homebrew path baked in. `GGML_BACKEND_PATH` points
+at a *file*, not a directory, which is worth knowing before you spend time on it.
+
+**Packaging exposed a first-run crash.** `request_permissions()` called
+`AXIsProcessTrusted` without importing it — a `NameError` that killed the app on launch.
+It never fired in development because permissions were already granted, so the path was
+dead code. Fixed, `ruff`/`pyflakes` run clean for undefined names, and `start()` failures
+are now non-fatal: the app stays alive in an error state instead of vanishing.
 
 ### Phase 0 results
 

@@ -18,8 +18,10 @@ import yaml
 from hotkey import MODE_HOLD, MODE_TOGGLE, Hotkey
 from postprocess import Profile, Vocabulary
 
-ROOT = Path(__file__).parent
-SETTINGS_PATH = ROOT / "settings.json"
+import paths
+
+ROOT = paths.resources()
+SETTINGS_PATH = paths.settings_file()
 
 
 def load_settings() -> dict:
@@ -61,7 +63,7 @@ class Config:
 
 
 def load(path: Path | None = None) -> Config:
-    path = path or (ROOT / "config.yaml")
+    path = path or paths.config_file()
     if not path.exists():
         return Config()
 

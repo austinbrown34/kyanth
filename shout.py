@@ -70,8 +70,10 @@ from Quartz import (
     kCGSessionEventTap,
 )
 
-ROOT = Path(__file__).parent
-WAV = ROOT / ".scratch" / "utterance.wav"
+import paths
+
+ROOT = paths.resources()
+WAV = paths.data() / "utterance.wav"
 SAMPLE_RATE = 16_000
 SERVER_PORT = 8178
 KEYCODE_RIGHT_OPTION = 61
