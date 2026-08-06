@@ -30,6 +30,7 @@ import shout
 import sounds
 from hotkey import MODE_HOLD
 from settings_ui import SettingsController
+from setup_ui import SetupController
 
 import paths
 
@@ -193,6 +194,7 @@ class ShoutApp(rumps.App):
             self.sound_item,
             *( [self.login_item] if self.login_item else [] ),
             rumps.MenuItem("Settings & History…", callback=self.on_settings),
+            rumps.MenuItem("Setup Check…", callback=self.show_setup),
             rumps.MenuItem("Edit Config…", callback=self.on_edit_config),
             rumps.MenuItem("Reload Config", callback=self.on_reload),
             rumps.MenuItem("Restart Model Server", callback=self.on_restart_server),
@@ -213,7 +215,10 @@ class ShoutApp(rumps.App):
             self.status_item.title = problems[0].splitlines()[0]
             self.set_state("error")
             print("preflight problems:", problems, file=sys.stderr)
-            return True  # stay alive so the user can read the menu and quit
+            # Guidance matters most when the app cannot start at all.
+            self._observe_show_settings()
+            AppHelper.callAfter(self.show_setup)
+            return True
 
         from AVFoundation import AVCaptureDevice, AVMediaTypeAudio
         mic = AVCaptureDevice.authorizationStatusForMediaType_(AVMediaTypeAudio)
@@ -246,16 +251,27 @@ class ShoutApp(rumps.App):
         self._observe_show_settings()
         self._offer_login_item()
 
+        # Do NOT touch the audio device before the microphone is granted:
+        # opening an input stream *blocks* while macOS shows its prompt, which
+        # froze startup before the setup window could ever be drawn. Show the
+        # guide instead and let the retry timer open the device afterwards.
+        if mic != 3:
+            print("[start] microphone not granted yet — showing setup")
+            self.set_state("needs-permission")
+            self.status_item.title = "Waiting for microphone access…"
+            rumps.Timer(self.retry_start, 2).start()
+            AppHelper.callAfter(self.show_setup)
+            return True
+
         try:
             self.recorder = shout.Recorder(lead_skip_ms=self.cues.lead_ms)
             print(f"[start] input device: {self.recorder._stream.device}")
         except Exception as e:
-            # Almost always "microphone not yet granted". Stay alive and retry
-            # rather than dying before the user has answered the prompt.
             print(f"[start] microphone unavailable: {e}")
             self.set_state("needs-permission")
             self.status_item.title = "Waiting for microphone access…"
             rumps.Timer(self.retry_start, 2).start()
+            AppHelper.callAfter(self.show_setup)
             return True
         threading.Thread(
             target=shout.worker,
@@ -276,9 +292,9 @@ class ShoutApp(rumps.App):
             self.set_state("needs-permission")
             self.status_item.title = "Grant permissions, then wait…"
             rumps.Timer(self.retry_tap, 2).start()
-            # Surface the window once the run loop is up. Without it a
-            # first-run user sees nothing at all happen when they open the app.
-            AppHelper.callAfter(self.on_settings)
+            # Show the guided setup rather than the settings window: the user
+            # needs to be told which switch to flip, and told when it worked.
+            AppHelper.callAfter(self.show_setup)
             return True
 
         print("[start] event tap installed — ready")
@@ -441,6 +457,9 @@ class ShoutApp(rumps.App):
         preview = text if len(text) <= 60 else text[:57] + "…"
         self.history.appendleft(f"{preview}{mark}   ({ms:.0f}ms)")
         AppHelper.callAfter(self._refresh_history)
+        setup = getattr(self, "setup", None)
+        if setup is not None:
+            setup.note_dictation()
         if where == "clipboard":
             rumps.notification("shout", "Copied to clipboard",
                                "No text field was focused — press ⌘V to paste.")
@@ -492,6 +511,14 @@ class ShoutApp(rumps.App):
         self.cfg = config_mod.load()
         rumps.notification("shout", "Config reloaded",
                            "Model changes need a server restart.")
+
+    def show_setup(self, _=None):
+        existing = getattr(self, "setup", None)
+        if existing is not None and existing.window.isVisible():
+            existing.start()
+            return
+        self.setup = SetupController.alloc().initWithApp_(self)
+        self.setup.start()
 
     def on_settings(self, _=None):
         existing = getattr(self, "settings", None)

@@ -28,19 +28,29 @@ nothing to build.**
 
 Requires **macOS 13+ on Apple Silicon**.
 
-### First run — grant three permissions
+### First run — the setup window walks you through it
 
-The app asks for these on first launch and waits until you grant them. It does **not**
-need a restart afterwards.
+On first launch shout opens a **Setup** window with seven checks. Each row shows a live
+status, and the one that needs you has a button that opens the right settings pane:
 
-| Permission | Why |
-|---|---|
-| **Microphone** | to hear you |
-| **Accessibility** | to type into other apps |
-| **Input Monitoring** | to see the hotkey |
+```
+1. Microphone            2. Accessibility        3. Input Monitoring
+4. Microphone connected  5. Speech engine        6. Shortcut active
+7. Try it
+```
 
-`System Settings → Privacy & Security → …` — the entries appear as **shout** with the
-app icon.
+It re-checks every second, so as you flip a switch in System Settings the row turns green
+by itself — no restart, no relaunch.
+
+**Step 7 is the important one.** Setup is not marked complete when the permissions are
+green; it is marked complete when a real dictation has round-tripped and produced text.
+Green permissions prove configuration, not function.
+
+macOS will not enable Accessibility or Input Monitoring on an app's behalf — you have to
+switch **shout** on in each list. The window says so, and tells you which one it is
+waiting for.
+
+Reopen it any time from the menu: **Setup Check…**
 
 > Without Accessibility, `CGEventPost` silently does nothing — no error, no exception.
 > The app would look like it was working while nothing reached your document. shout
@@ -254,10 +264,10 @@ no room and reports no error. Free a slot in `System Settings → Control Center
 icon off the bar, or use [Ice](https://github.com/jordanbaird/Ice) (free). Sound cues work
 regardless.
 
-**Nothing happens when I press the key.** Check
-`~/Library/Application Support/shout/logs/app.log` — it records permissions, input device
-and every capture. No `● recording` line means the hotkey isn't reaching the app; confirm
-Input Monitoring is granted to `shout.app`.
+**Nothing happens when I press the key.** Open **Setup Check…** from the menu — it names
+the failing step directly. Failing that,
+`~/Library/Application Support/shout/logs/app.log` records permissions, input device and
+every capture; no `● recording` line means the hotkey isn't reaching the app.
 
 **A tap does nothing in hold mode.** Presses under 0.25 s are discarded. Hold longer, or
 switch to toggle mode. The `ignored` cue tells you this happened.
@@ -631,7 +641,23 @@ peak_rms × 0.08))`. Never demand more than a fraction of the loudest frame; kee
 silence isn't read as one very quiet speaker. The same clip now keeps all 4.7 s and
 transcribes in full.
 
-#### Notarization rejects on the one file you didn't sign
+#### Opening the audio device blocks on the permission prompt
+
+`sounddevice.InputStream()` does not raise when the microphone is ungranted — it *blocks*
+while macOS displays its prompt. Startup therefore froze before the setup window could be
+drawn, so a first-run user saw nothing at all. The microphone status is now checked first,
+and the device is not touched until the grant is in place.
+
+### py_compile does not catch pyobjc selector errors
+
+On an `NSObject` subclass, pyobjc converts every method into an Objective-C selector at
+class-creation time, and a bare name maps to a zero-argument selector — so a helper like
+`_hint(self, step)` raises `BadPrototypeError`. `py_compile` parses without executing the
+class body, so it passed cleanly and the frozen app then refused to launch. Python-only
+methods are marked `@objc.python_method`, and the release build now *imports* every module
+rather than merely compiling it.
+
+### Notarization rejects on the one file you didn't sign
 
 Three failed submissions, three separate causes, each hidden behind something that
 reported success:

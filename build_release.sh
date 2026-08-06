@@ -44,6 +44,19 @@ if [ ! -f "$MODEL_REL" ]; then
   mv "$MODEL_REL.part" "$MODEL_REL"
 fi
 
+# ------------------------------------------------------------ 2b. import
+# Import every module for real. `py_compile` only parses — it never executes a
+# class body, so pyobjc selector errors (BadPrototypeError) sail through it and
+# surface only when the frozen app refuses to launch.
+echo "==> import check"
+uv run python -c "
+import importlib, sys
+for m in ('paths','config','hotkey','postprocess','vad','sounds','history',
+          'loginitem','shout','settings_ui','setup_ui','menubar'):
+    importlib.import_module(m)
+print('    all modules import cleanly')
+" || { echo "import check failed — not building" >&2; exit 1; }
+
 # -------------------------------------------------------------- 3. build
 echo "==> building app bundle"
 rm -rf build dist/shout dist/shout.app
