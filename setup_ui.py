@@ -30,12 +30,16 @@ from AppKit import (
 )
 from Foundation import NSObject, NSTimer
 
-W, H = 560, 520
-ROW_H = 74
+#  Sized so all seven rows fit with room to spare. The first version used
+#  H=520 with ROW_H=74, which put row 7 at y=-36 — off-window — and overlapped
+#  every title with its own detail line.
+W, H = 580, 700
+ROW_H = 66
+ROWS_TOP = H - 124
 
-PENDING, ACTIVE, DONE, FAILED = "pending", "active", "done", "failed"
+PENDING, ACTIVE, DONE, WARN = "pending", "active", "done", "warn"
 
-DOT = {PENDING: "○", ACTIVE: "◉", DONE: "✔", FAILED: "✕"}
+DOT = {PENDING: "○", ACTIVE: "◉", DONE: "✔", WARN: "!"}
 
 
 def _text(s, x, y, w, h, size=13, bold=False, color=None, mono=False):
@@ -58,13 +62,18 @@ def _text(s, x, y, w, h, size=13, bold=False, color=None, mono=False):
 class Step:
     """One row. `check` returns True when satisfied; `act` is the button."""
 
-    def __init__(self, key, title, detail, check, act=None, button="Open Settings"):
+    def __init__(self, key, title, detail, check, act=None,
+                 button="Open Settings", optional=False):
         self.key = key
         self.title = title
         self.detail = detail
         self.check = check
         self.act = act
         self.button = button
+        #  Optional steps are worth surfacing but must never block completion.
+        #  Input Monitoring is the case: on some Macs the tap works without it,
+        #  and gating on it strands a user whose shortcut is already firing.
+        self.optional = optional
         self.state = PENDING
 
 
@@ -146,8 +155,8 @@ class SetupController(NSObject):
                  "So shout can type the text into whatever app you are using.",
                  ax_ok, ax_act),
             Step("listen", "Input Monitoring",
-                 "So shout can see your shortcut while another app is focused.",
-                 listen_ok, listen_act),
+                 "Usually needed for the shortcut. Skip if step 7 already works.",
+                 listen_ok, listen_act, optional=True),
             Step("audio", "Microphone connected",
                  "Opens the input device and starts listening for your shortcut.",
                  audio_ok, None, ""),
@@ -158,8 +167,7 @@ class SetupController(NSObject):
                  "Registers your key combination system-wide.",
                  tap_ok, None, ""),
             Step("test", "Try it",
-                 "Press your shortcut, say a few words, and stop. "
-                 "Setup finishes when text actually appears.",
+                 "Setup completes only once real text has appeared.",
                  lambda: self.dictated, None, ""),
         ]
 
@@ -188,14 +196,13 @@ class SetupController(NSObject):
         view.addSubview_(self.subtitle)
 
         self.rows = {}
-        top = H - 112
         for i, step in enumerate(self.steps):
-            y = top - i * ROW_H
-            dot = _text(DOT[PENDING], 28, y - 26, 24, 22, 17)
-            title = _text(f"{i + 1}. {step.title}", 56, y - 24, 300, 20, 13, bold=True)
-            detail = _text(step.detail, 56, y - 46, W - 190, 32, 11,
-                           color=NSColor.secondaryLabelColor())
-            detail.setUsesSingleLineMode_(False)
+            y = ROWS_TOP - i * ROW_H
+            dot = _text(DOT[PENDING], 28, y - 18, 24, 22, 16)
+            title = _text(f"{i + 1}. {step.title}", 56, y - 18, 320, 20, 13, bold=True)
+            wide = step.act is None          # no button, so use the full width
+            detail = _text(step.detail, 56, y - 40, (W - 84) if wide else (W - 200),
+                           17, 11, color=NSColor.secondaryLabelColor())
             view.addSubview_(dot)
             view.addSubview_(title)
             view.addSubview_(detail)
@@ -203,7 +210,7 @@ class SetupController(NSObject):
             btn = None
             if step.act is not None:
                 btn = NSButton.alloc().initWithFrame_(
-                    NSMakeRect(W - 152, y - 32, 124, 30))
+                    NSMakeRect(W - 160, y - 24, 132, 30))
                 btn.setTitle_(step.button)
                 btn.setBezelStyle_(NSBezelStyleRounded)
                 btn.setTarget_(self)
@@ -214,12 +221,13 @@ class SetupController(NSObject):
 
             self.rows[step.key] = (dot, title, detail, btn)
 
-        self.status = _text("", 28, 62, W - 56, 34, 12)
+        self.status = _text("", 28, 74, W - 56, 38, 11,
+                            color=NSColor.secondaryLabelColor())
         self.status.setUsesSingleLineMode_(False)
         view.addSubview_(self.status)
 
         self.done_btn = NSButton.alloc().initWithFrame_(
-            NSMakeRect(W - 152, 20, 124, 32))
+            NSMakeRect(W - 160, 24, 132, 32))
         self.done_btn.setTitle_("Done")
         self.done_btn.setBezelStyle_(NSBezelStyleRounded)
         self.done_btn.setKeyEquivalent_("\r")
@@ -228,7 +236,7 @@ class SetupController(NSObject):
         self.done_btn.setEnabled_(False)
         view.addSubview_(self.done_btn)
 
-        log_btn = NSButton.alloc().initWithFrame_(NSMakeRect(28, 20, 124, 32))
+        log_btn = NSButton.alloc().initWithFrame_(NSMakeRect(28, 24, 124, 32))
         log_btn.setTitle_("Open Log")
         log_btn.setBezelStyle_(NSBezelStyleRounded)
         log_btn.setTarget_(self)
@@ -290,6 +298,10 @@ class SetupController(NSObject):
                 ok = False
             if ok:
                 step.state = DONE
+            elif step.optional:
+                # Flagged, never blocking, and it does not consume the
+                # "current step" slot — the user should keep moving.
+                step.state = WARN
             elif first_incomplete is None:
                 step.state = ACTIVE
                 first_incomplete = step
@@ -301,18 +313,22 @@ class SetupController(NSObject):
             dot.setStringValue_(DOT[step.state])
             dot.setTextColor_(
                 NSColor.systemGreenColor() if step.state == DONE
+                else NSColor.systemOrangeColor() if step.state == WARN
                 else NSColor.controlAccentColor() if step.state == ACTIVE
                 else NSColor.tertiaryLabelColor())
             title.setTextColor_(
-                NSColor.labelColor() if step.state in (DONE, ACTIVE)
+                NSColor.labelColor() if step.state in (DONE, ACTIVE, WARN)
                 else NSColor.tertiaryLabelColor())
             if btn is not None:
-                btn.setHidden_(step.state != ACTIVE)
+                btn.setHidden_(step.state not in (ACTIVE, WARN))
 
         if first_incomplete is None:
             self.subtitle.setStringValue_("Everything is working.")
+            skipped = [s.title for s in self.steps if s.state == WARN]
             self.status.setStringValue_(
-                "shout is running and will start automatically at login.")
+                "shout is running and will start automatically at login."
+                + (f"  ({', '.join(skipped)} not granted, but not needed here.)"
+                   if skipped else ""))
             self.status.setTextColor_(NSColor.systemGreenColor())
             self.done_btn.setEnabled_(True)
             self.done_btn.setTitle_("Finish")
@@ -326,13 +342,14 @@ class SetupController(NSObject):
 
     @python_method
     def _hint(self, step):
-        if step.key in ("ax", "listen"):
+        if step.key == "ax":
             return ("macOS cannot enable this for you. Click the button, then "
                     "switch “shout” ON in the list that opens. "
                     "This window updates by itself.")
         if step.key == "listen":
-            return ("If shout is not in the list, click + and choose "
-                    "/Applications/shout.app")
+            return ("Click the button, then switch “shout” ON. If it is not "
+                    "listed, click + and choose /Applications/shout.app. "
+                    "Optional — if step 7 works, you can ignore this.")
         if step.key == "test":
             hk = getattr(self.app.cfg, "hotkey", None)
             label = hk.label() if hk else "your shortcut"

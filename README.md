@@ -42,6 +42,10 @@ status, and the one that needs you has a button that opens the right settings pa
 It re-checks every second, so as you flip a switch in System Settings the row turns green
 by itself — no restart, no relaunch.
 
+**Input Monitoring is marked optional.** On some Macs the shortcut works without it; on
+others it is required. It shows an orange `!` when missing but never blocks completion,
+because step 7 is the real test. If your shortcut already produces text, ignore it.
+
 **Step 7 is the important one.** Setup is not marked complete when the permissions are
 green; it is marked complete when a real dictation has round-tripped and produced text.
 Green permissions prove configuration, not function.
@@ -641,7 +645,17 @@ peak_rms × 0.08))`. Never demand more than a fraction of the loudest frame; kee
 silence isn't read as one very quiet speaker. The same clip now keeps all 4.7 s and
 transcribes in full.
 
-#### Opening the audio device blocks on the permission prompt
+#### A setup checklist must not gate on a check that can be wrong
+
+Input Monitoring was a hard requirement in the wizard, mirroring the same mistake made
+earlier in `install_tap()`. A user reported step 3 stuck red — while steps 4, 5 and 6 were
+green and the log showed the event tap firing. The app was working and the checklist said
+it wasn't.
+
+Steps now carry an `optional` flag: they are surfaced, they get a fix-it button, but they
+never block. The only unskippable proof is step 7, an actual dictation.
+
+### Opening the audio device blocks on the permission prompt
 
 `sounddevice.InputStream()` does not raise when the microphone is ungranted — it *blocks*
 while macOS displays its prompt. Startup therefore froze before the setup window could be
