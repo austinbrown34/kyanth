@@ -235,6 +235,21 @@ bundle rather than a separate file. Then remove the **shout** entries under
 
 ## Troubleshooting
 
+**Clicking the app does nothing / no window.** shout is a menu-bar app — it has no
+regular window, so opening it just places an icon in the menu bar. If your menu bar is
+full that icon is hidden and nothing appears to happen. Opening it again from Applications
+surfaces the Settings & History window, which is the reliable route in.
+
+**Two copies of shout in Applications or Spotlight.** Only `/Applications/shout.app` is
+real; the others are build artifacts under `dist/` that LaunchServices indexed. Clear them:
+
+```bash
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
+  -u /path/to/repo/dist/shout.app
+```
+
+`dist/` is marked never-index so fresh builds no longer register themselves.
+
 **No menu-bar icon.** Your menu bar is full. macOS silently drops status items when there is
 no room and reports no error. Free a slot in `System Settings → Control Center`, ⌘-drag an
 icon off the bar, or use [Ice](https://github.com/jordanbaird/Ice) (free). Sound cues work
@@ -379,6 +394,14 @@ on status meant never attempting registration and the feature could never turn i
 And registration was initially placed in the "permissions granted" branch, which is exactly
 backwards: an app that can't run yet is *precisely* the one that needs to come back at
 login so the user can finish granting.
+
+**A menu-bar app with a full menu bar can become completely unreachable.** The routes in
+are the status icon (hidden when the bar is full), a window (a menu-bar app has none), and
+re-opening from Applications. The reopen handler and its notification observer were being
+registered only after a *successful* start — so with permissions ungranted the app had no
+icon, no window, and no way to be opened at all. They are now wired up before anything that
+can fail, and a first run with missing permissions opens the Settings window rather than
+sitting invisible.
 
 **Packaging exposed a first-run crash.** `request_permissions()` called
 `AXIsProcessTrusted` without importing it — a `NameError` that killed the app on launch.

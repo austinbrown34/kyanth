@@ -236,6 +236,13 @@ class ShoutApp(rumps.App):
         print(f"[start] sound cues: {'on' if self.cfg.sound else 'off'} "
               f"(volume {self.cfg.volume})")
 
+        # Register these BEFORE anything that can fail. They are how the user
+        # reaches the app at all: with a full menu bar the icon is hidden, and
+        # a menu-bar app has no window, so re-opening from Applications is the
+        # only remaining route to Settings. Gating them behind a successful
+        # start made the app unreachable in exactly the situation — missing
+        # permissions — where it most needs to be reached.
+        self._observe_show_settings()
         self._offer_login_item()
 
         try:
@@ -268,9 +275,11 @@ class ShoutApp(rumps.App):
             self.set_state("needs-permission")
             self.status_item.title = "Grant permissions, then wait…"
             rumps.Timer(self.retry_tap, 2).start()
+            # Surface the window once the run loop is up. Without it a
+            # first-run user sees nothing at all happen when they open the app.
+            AppHelper.callAfter(self.on_settings)
             return True
 
-        self._observe_show_settings()
         print("[start] event tap installed — ready")
         self.set_state("idle")
         return True
@@ -313,7 +322,6 @@ class ShoutApp(rumps.App):
             )
         if self.install_tap():
             timer.stop()
-            self._observe_show_settings()
             self.set_state("idle")
             print("[start] permissions granted — ready")
             rumps.notification("shout", "Ready", "Hold your shortcut to dictate.")
