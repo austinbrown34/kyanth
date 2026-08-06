@@ -62,10 +62,33 @@ else
   echo "==> signing with: $IDENTITY"
 fi
 
-find "$APP/Contents" \( -name '*.dylib' -o -name '*.so' \) -type f -print0 \
-  | xargs -0 -n1 codesign "${SIGN_ARGS[@]}" 2>/dev/null || true
-# whisper-server is a nested executable, not a library
-codesign "${SIGN_ARGS[@]}" "$APP/Contents/Resources/vendor/bin/whisper-server" 2>/dev/null || true
+# Enumerate by content, not by filename. Matching *.dylib and *.so misses
+# every extensionless Mach-O — which is how the embedded
+# Python.framework/Versions/3.14/Python kept Homebrew's signature and got the
+# whole submission rejected. It also silently missed whisper-server, because
+# the hardcoded path guessed Resources/ when PyInstaller had put it in
+# Frameworks/.
+# NB: no `mapfile` — that is a bash 4 builtin and macOS ships bash 3.2, where
+# it fails with "command not found".
+MACHO_LIST="$(mktemp)"
+find "$APP/Contents" -type f -print0 \
+  | xargs -0 file 2>/dev/null \
+  | awk -F: '/Mach-O/ {print $1}' \
+  | awk '{print length"\t"$0}' | sort -rn | cut -f2- > "$MACHO_LIST"   # deepest first
+echo "    signing $(wc -l < "$MACHO_LIST" | tr -d ' ') nested binaries"
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  codesign "${SIGN_ARGS[@]}" "$f" || { echo "FAILED to sign: $f" >&2; exit 1; }
+done < "$MACHO_LIST"
+rm -f "$MACHO_LIST"
+
+# Frameworks are signed as bundles, after their contents.
+for fw in "$APP"/Contents/Frameworks/*.framework; do
+  [ -d "$fw" ] || continue
+  ver="$(ls -d "$fw"/Versions/* 2>/dev/null | grep -v Current | head -1)"
+  [ -n "$ver" ] && codesign "${SIGN_ARGS[@]}" "$ver"
+done
+
 codesign "${SIGN_ARGS[@]}" "$APP"
 
 echo "==> verifying"
@@ -88,7 +111,19 @@ if [ "$NOTARIZE" -eq 1 ]; then
     echo "no notarization credentials — see the header of this script" >&2
     exit 1
   fi
-  xcrun notarytool submit "$ZIP" "${CRED[@]}" --wait
+  if ! xcrun notarytool submit "$ZIP" "${CRED[@]}" --wait | tee /tmp/notarytool-submit.log; then
+    echo "notarization submission failed" >&2; exit 1
+  fi
+  # `notarytool submit --wait` exits 0 even when Apple rejects the archive, so
+  # the status line has to be checked explicitly or the build happily ships an
+  # unnotarized DMG.
+  if ! grep -q "status: Accepted" /tmp/notarytool-submit.log; then
+    SUB=$(grep -oE "id: [0-9a-f-]{36}" /tmp/notarytool-submit.log | head -1 | awk "{print \$2}")
+    echo "NOTARIZATION REJECTED — fetching reasons:" >&2
+    xcrun notarytool log "$SUB" "${CRED[@]}" 2>/dev/null \
+      | python3 -c "import json,sys; d=json.load(sys.stdin); [print('  -', i.get('message'), '\n    ', i.get('path','')) for i in (d.get('issues') or [])]" >&2
+    exit 1
+  fi
   xcrun stapler staple "$APP"
   rm -f "$ZIP"
   echo "==> stapled"
@@ -103,7 +138,17 @@ ln -s /Applications dist/dmg/Applications
 hdiutil create -volname "shout" -srcfolder dist/dmg -ov -format UDZO "$DMG" >/dev/null
 rm -rf dist/dmg
 [ "$ADHOC" -eq 0 ] && codesign --force --sign "$IDENTITY" "$DMG"
-[ "$NOTARIZE" -eq 1 ] && xcrun stapler staple "$DMG"
+
+# The DMG needs its own notarization pass. Stapling the app does not give the
+# disk image a ticket, so `stapler staple` on the DMG fails with "Record not
+# found" — the first build looked successful right up to that point.
+if [ "$NOTARIZE" -eq 1 ]; then
+  echo "==> notarizing the DMG"
+  xcrun notarytool submit "$DMG" "${CRED[@]}" --wait | tee /tmp/notarytool-dmg.log
+  grep -q "status: Accepted" /tmp/notarytool-dmg.log || {
+    echo "DMG notarization rejected" >&2; exit 1; }
+  xcrun stapler staple "$DMG"
+fi
 
 echo
 echo "built $DMG  ($(du -h "$DMG" | cut -f1))"

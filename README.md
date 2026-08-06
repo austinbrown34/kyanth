@@ -19,15 +19,14 @@ competitive analysis and architecture.
 2. Open it and drag **shout** to Applications
 3. Launch it from Applications
 
+The build is signed and **notarized by Apple**, so it opens normally — no
+right-click, no Gatekeeper warning.
+
 That's the whole install. The app is self-contained — Python, the speech model,
 and the transcription engine all ship inside it. **No Homebrew, no Python, no `uv`,
 nothing to build.**
 
 Requires **macOS 13+ on Apple Silicon**.
-
-> **If macOS says it "cannot be opened because Apple cannot check it for malicious
-> software":** the build wasn't notarized. Right-click the app → **Open** → **Open**.
-> You only do this once. Builds made with `./build_release.sh --notarize` don't show it.
 
 ### First run — grant three permissions
 
@@ -632,7 +631,29 @@ peak_rms × 0.08))`. Never demand more than a fraction of the loudest frame; kee
 silence isn't read as one very quiet speaker. The same clip now keeps all 4.7 s and
 transcribes in full.
 
-#### Input Monitoring must be advisory, not a gate
+#### Notarization rejects on the one file you didn't sign
+
+Three failed submissions, three separate causes, each hidden behind something that
+reported success:
+
+1. **Signing by filename misses extensionless binaries.** The loop matched `*.dylib` and
+   `*.so`; the embedded `Python.framework/Versions/3.14/Python` has no extension and kept
+   Homebrew's original signature. One file, whole archive rejected. Binaries are now
+   enumerated by *content* (`file` → Mach-O) — 119 of them.
+   `codesign --verify --deep` passed the whole time.
+2. **A hardcoded path that didn't exist.** `whisper-server` was signed at
+   `Contents/Resources/vendor/bin/`; PyInstaller puts it in `Contents/Frameworks/vendor/bin/`.
+   A trailing `2>/dev/null || true` swallowed the error.
+3. **`mapfile` is a bash 4 builtin and macOS ships bash 3.2.57.** The signing loop never
+   ran — and the script still exited 0 despite `set -euo pipefail`.
+
+Two further traps worth knowing. `notarytool submit --wait` **exits 0 even when Apple
+rejects the archive**, so the status line must be grepped explicitly or the build ships an
+unnotarized DMG while reporting success. And stapling the app does *not* give the disk
+image a ticket: the DMG needs its own notarization pass, otherwise `stapler staple` on it
+fails with "Record not found".
+
+### Input Monitoring must be advisory, not a gate
 
 Listening to key events wants **Input Monitoring** (`kTCCServiceListenEvent`), which is a
 separate grant from Accessibility. When it's missing, `AXIsProcessTrusted()` still returns
