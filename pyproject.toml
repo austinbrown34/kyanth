@@ -8,6 +8,7 @@ dependencies = [
     "pyobjc-framework-avfoundation>=12.2.1",
     "pyobjc-framework-cocoa>=12.2.1",
     "pyobjc-framework-quartz>=12.2.1",
+    "pyobjc-framework-servicemanagement>=12.2.1",
     "pyyaml>=6.0.3",
     "requests>=2.34.2",
     "rumps>=0.4.0",

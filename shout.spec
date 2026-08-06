@@ -41,7 +41,7 @@ a = Analysis(
     pathex=[str(ROOT)],
     datas=datas,
     hiddenimports=[
-        "config", "history", "hotkey", "paths", "postprocess",
+        "config", "history", "hotkey", "loginitem", "paths", "postprocess",
         "settings_ui", "shout", "sounds", "vad",
     ],
     excludes=["tkinter", "matplotlib", "PIL", "pytest", "setuptools"],

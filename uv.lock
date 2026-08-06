@@ -458,6 +458,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pyobjc-framework-servicemanagement"
+version = "12.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyobjc-core" },
+    { name = "pyobjc-framework-cocoa" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6f/2b/289270180fc32c2297907e6576355aaabf004297d9830a62f9792a5bc95b/pyobjc_framework_servicemanagement-12.2.1.tar.gz", hash = "sha256:99ceee681fea1e57246d33acbe199100f2e35a09cac97ae1c271e34073c28763", size = 15295 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/30/15/ba63887c27663a7107f289a44072c04c6b351b52177c63d8004640fa7325/pyobjc_framework_servicemanagement-12.2.1-py2.py3-none-any.whl", hash = "sha256:8c84c82a09bf00046ef2d43f910204cd362fd1eceb706176c30d079ee208f2ed", size = 5456 },
+]
+
+[[package]]
 name = "pywin32-ctypes"
 version = "0.2.3"
 source = { registry = "https://pypi.org/simple" }
@@ -555,6 +568,7 @@ dependencies = [
     { name = "pyobjc-framework-avfoundation" },
     { name = "pyobjc-framework-cocoa" },
     { name = "pyobjc-framework-quartz" },
+    { name = "pyobjc-framework-servicemanagement" },
     { name = "pyyaml" },
     { name = "requests" },
     { name = "rumps" },
@@ -573,6 +587,7 @@ requires-dist = [
     { name = "pyobjc-framework-avfoundation", specifier = ">=12.2.1" },
     { name = "pyobjc-framework-cocoa", specifier = ">=12.2.1" },
     { name = "pyobjc-framework-quartz", specifier = ">=12.2.1" },
+    { name = "pyobjc-framework-servicemanagement", specifier = ">=12.2.1" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "requests", specifier = ">=2.34.2" },
     { name = "rumps", specifier = ">=0.4.0" },

@@ -24,6 +24,14 @@ ROOT = paths.resources()
 SETTINGS_PATH = paths.settings_file()
 
 
+def mark_login_offered() -> None:
+    """Remember that open-at-login was registered once, so a user who turns it
+    off is not overridden on the next launch."""
+    data = load_settings()
+    data["login_offered"] = True
+    SETTINGS_PATH.write_text(json.dumps(data, indent=2) + "\n")
+
+
 def load_settings() -> dict:
     if not SETTINGS_PATH.exists():
         return {}
@@ -41,6 +49,7 @@ def save_settings(hotkey: Hotkey, mode: str, sound: bool | None = None,
         "mode": mode,
         "sound": current.get("sound", True) if sound is None else bool(sound),
         "volume": current.get("volume", 0.35) if volume is None else float(volume),
+        "login_offered": current.get("login_offered", False),
     }
     SETTINGS_PATH.write_text(json.dumps(data, indent=2) + "\n")
 

@@ -25,6 +25,7 @@ from PyObjCTools import AppHelper
 
 import config as config_mod
 import history as history_mod
+import loginitem
 import shout
 import sounds
 from hotkey import MODE_HOLD
@@ -175,6 +176,12 @@ class ShoutApp(rumps.App):
         self.history_menu = rumps.MenuItem("Recent")
         self.sound_item = rumps.MenuItem("Sound cues", callback=self.on_toggle_sound)
         self.sound_item.state = self.cfg.sound
+        # Hidden when running from source, where there is no bundle to register.
+        self.login_item = None
+        if loginitem.available():
+            self.login_item = rumps.MenuItem("Open at Login",
+                                             callback=self.on_toggle_login)
+            self.login_item.state = loginitem.enabled()
 
         self.menu = [
             self.status_item,
@@ -183,6 +190,7 @@ class ShoutApp(rumps.App):
             self.history_menu,
             None,
             self.sound_item,
+            *( [self.login_item] if self.login_item else [] ),
             rumps.MenuItem("Settings & History…", callback=self.on_settings),
             rumps.MenuItem("Edit Config…", callback=self.on_edit_config),
             rumps.MenuItem("Reload Config", callback=self.on_reload),
@@ -224,8 +232,11 @@ class ShoutApp(rumps.App):
 
         self.cues = sounds.Cues(paths.cues(), enabled=self.cfg.sound,
                                 volume=self.cfg.volume)
+        print(f"[start] frozen={paths.FROZEN} open at login: {loginitem.status_label()}")
         print(f"[start] sound cues: {'on' if self.cfg.sound else 'off'} "
               f"(volume {self.cfg.volume})")
+
+        self._offer_login_item()
 
         try:
             self.recorder = shout.Recorder(lead_skip_ms=self.cues.lead_ms)
@@ -309,6 +320,20 @@ class ShoutApp(rumps.App):
         else:
             self.request_permissions()
 
+    def _offer_login_item(self):
+        """Register at login once, on first successful start. A menu-bar
+        dictation tool is useless if it isn't running, so the default is on —
+        but only offered once, so turning it off sticks."""
+        if not loginitem.available():
+            return
+        if config_mod.load_settings().get("login_offered"):
+            return
+        ok, msg = loginitem.set_enabled(True)
+        config_mod.mark_login_offered()
+        if self.login_item is not None:
+            self.login_item.state = loginitem.enabled()
+        print(f"[login] first run, registered at login: {ok} ({msg})")
+
     def install_tap(self) -> bool:
         """Both grants are required. Accessibility alone yields a tap that is
         created successfully and then never fires."""
@@ -339,7 +364,8 @@ class ShoutApp(rumps.App):
         if self.install_tap():
             timer.stop()
             self.set_state("idle")
-            rumps.notification("shout", "Ready", "Hold right ⌥ to dictate.")
+            rumps.notification("shout", "Ready",
+                               f"Hold {self.cfg.hotkey.label()} to dictate.")
 
     def preflight(self) -> list[str]:
         problems = []
@@ -433,6 +459,16 @@ class ShoutApp(rumps.App):
         if on:
             self.cues.play("start")     # confirm audibly
         print(f"[settings] sound cues {'on' if on else 'off'}")
+
+    def on_toggle_login(self, sender):
+        want = not sender.state
+        ok, msg = loginitem.set_enabled(want)
+        # Reflect the real state, not the intent: macOS can refuse, and a
+        # checkbox that lies about it is worse than one that does nothing.
+        sender.state = loginitem.enabled()
+        print(f"[login] open-at-login -> {loginitem.status_label()} ({msg})")
+        if not ok:
+            rumps.notification("shout", "Could not change Open at Login", msg)
 
     def on_reload(self, _):
         self.cfg = config_mod.load()

@@ -215,6 +215,11 @@ Because the app is signed with a stable Developer ID, macOS keeps your permissio
 across updates. (An ad-hoc signature changes identity on every build, which would make
 you re-grant every time.)
 
+**Open at login** is on by default and registered the first time the app starts. Toggle
+it from the menu (**Open at Login**), or from `System Settings → General → Login Items`,
+where it appears as **shout**. Turning it off there is respected — the app won't re-enable
+itself on the next launch.
+
 **Remove:**
 
 ```bash
@@ -222,7 +227,9 @@ rm -rf /Applications/shout.app
 rm -rf ~/Library/Application\ Support/shout    # also deletes history and settings
 ```
 
-Then remove the **shout** entries under `System Settings → Privacy & Security`.
+Deleting the app also removes its login-item registration — macOS tracks it against the
+bundle rather than a separate file. Then remove the **shout** entries under
+`System Settings → Privacy & Security`.
 
 ---
 
@@ -359,6 +366,19 @@ Gatekeeper rejects the app.
 libraries — `otool -L` doesn't mention them. They're placed next to `whisper-server` in
 the bundle so ggml finds them without a Homebrew path baked in. `GGML_BACKEND_PATH` points
 at a *file*, not a directory, which is worth knowing before you spend time on it.
+
+**Open at login uses SMAppService, not a LaunchAgent plist.** macOS 13 replaced
+hand-written `~/Library/LaunchAgents` plists with an API where the app registers itself.
+Better here: there's no second file to keep in sync with the bundle's location, deleting
+the app can't orphan an agent that then fails on every boot, and the entry appears in
+System Settings under the app's own name where users can remove it.
+
+Two things cost time. `SMAppService.mainAppService().status()` returns `notFound` — not
+`notRegistered` — until the app has been registered at least once, so gating availability
+on status meant never attempting registration and the feature could never turn itself on.
+And registration was initially placed in the "permissions granted" branch, which is exactly
+backwards: an app that can't run yet is *precisely* the one that needs to come back at
+login so the user can finish granting.
 
 **Packaging exposed a first-run crash.** `request_permissions()` called
 `AXIsProcessTrusted` without importing it — a `NameError` that killed the app on launch.
