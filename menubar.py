@@ -169,6 +169,7 @@ class ShoutApp(rumps.App):
         self.server = ServerManager(self.cfg.model, shout.SERVER_PORT)
         self.recorder = None
         self.daemon = None
+        self._warned_listen = False
 
         self.status_item = rumps.MenuItem("Starting…")
         self.toggle_item = rumps.MenuItem("Enabled", callback=self.on_toggle)
@@ -343,14 +344,23 @@ class ShoutApp(rumps.App):
         print(f"[login] first run, registered at login: {ok} ({msg})")
 
     def install_tap(self) -> bool:
-        """Both grants are required. Accessibility alone yields a tap that is
-        created successfully and then never fires."""
+        """Accessibility is the hard requirement; Input Monitoring is advisory.
+
+        Treating Input Monitoring as mandatory was wrong: macOS does not
+        re-prompt for it once denied, and a freshly installed app is often not
+        in that list at all — so the check became a gate the app could never
+        pass, and the hotkey silently never installed. Attempt the tap on
+        Accessibility alone and warn if the other grant is missing.
+        """
         from ApplicationServices import AXIsProcessTrusted
 
         if not AXIsProcessTrusted():
             return False
-        if shout.input_monitoring_status() != 0:
-            return False
+        if shout.input_monitoring_status() != 0 and not self._warned_listen:
+            self._warned_listen = True
+            print("[perm] Input Monitoring not granted — installing the tap "
+                  "anyway; if the hotkey does nothing, add shout under "
+                  "System Settings > Privacy & Security > Input Monitoring")
         return bool(self.daemon and self.daemon.install())
 
     def request_permissions(self):

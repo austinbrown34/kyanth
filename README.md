@@ -632,7 +632,23 @@ peak_rms × 0.08))`. Never demand more than a fraction of the loudest frame; kee
 silence isn't read as one very quiet speaker. The same clip now keeps all 4.7 s and
 transcribes in full.
 
-#### A near-miss: Input Monitoring
+#### Input Monitoring must be advisory, not a gate
+
+Listening to key events wants **Input Monitoring** (`kTCCServiceListenEvent`), which is a
+separate grant from Accessibility. When it's missing, `AXIsProcessTrusted()` still returns
+true and `CGEventTapCreate()` still returns a valid tap — it simply never fires. So it
+seemed prudent to require both before installing the tap.
+
+That was wrong, and it broke the packaged app completely. macOS does **not** re-prompt for
+Input Monitoring once it has been denied, and a freshly installed app is often not in that
+list at all — so the check became a gate the app could never pass. The hotkey silently
+never installed, with no error beyond a status code in the log.
+
+Accessibility is now the hard requirement; a missing Input Monitoring grant logs a warning
+and the tap is installed anyway. The original reasoning held only because, during
+development, the terminal already had both grants.
+
+### The original near-miss: Input Monitoring
 
 Listening to key events requires **Input Monitoring** (`kTCCServiceListenEvent`), a
 *separate* grant from Accessibility. When it's missing, `AXIsProcessTrusted()` still
