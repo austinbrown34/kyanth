@@ -56,6 +56,10 @@ waiting for.
 
 Reopen it any time from the menu: **Setup Check…**
 
+Both windows carry a **Quit shout** button. That matters more than it sounds: when the
+menu bar is full macOS hides the status icon, and the window is then the only way to quit
+the app.
+
 > Without Accessibility, `CGEventPost` silently does nothing — no error, no exception.
 > The app would look like it was working while nothing reached your document. shout
 > checks explicitly and reports it in the menu rather than failing quietly.
@@ -670,6 +674,22 @@ real use.
 The general shape is the recurring one in this project: a property that was verified once
 and then silently invalidated by a later step. Checking it at the point of use, rather
 than trusting that it still holds, is the only thing that works.
+
+### "Couldn't tell" is not "no"
+
+`focused_is_editable()` returned three states — yes, no, and undeterminable — and the
+paste skipped on anything that wasn't yes. But the code mapped an Accessibility *error* to
+a hard `False`, so any app that failed to answer the query had its dictation diverted to
+the clipboard while the user sat in a text field waiting for text to appear.
+
+Plenty of apps fail that query: Electron and other non-native toolkits, anything slow to
+service an AX request, and apps queried shortly after Accessibility was granted — macOS
+often needs a relaunch before cross-app AX queries work reliably.
+
+Pasting is now the default. Only a positive "this element cannot take text" suppresses it;
+anything uncertain pastes *and* keeps the text on the clipboard as a net. The reason is
+logged with every dictation (`focus: AXTextArea`, `focus: AX error -25204`), which was
+impossible to see before.
 
 ### A setup checklist must not gate on a check that can be wrong
 

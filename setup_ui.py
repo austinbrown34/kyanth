@@ -236,12 +236,21 @@ class SetupController(NSObject):
         self.done_btn.setEnabled_(False)
         view.addSubview_(self.done_btn)
 
-        log_btn = NSButton.alloc().initWithFrame_(NSMakeRect(28, 24, 124, 32))
+        log_btn = NSButton.alloc().initWithFrame_(NSMakeRect(28, 24, 112, 32))
         log_btn.setTitle_("Open Log")
         log_btn.setBezelStyle_(NSBezelStyleRounded)
         log_btn.setTarget_(self)
         log_btn.setAction_("openLog:")
         view.addSubview_(log_btn)
+
+        #  A user stuck partway through setup, with the status icon hidden by a
+        #  full menu bar, otherwise has no way to quit the app at all.
+        quit_btn = NSButton.alloc().initWithFrame_(NSMakeRect(148, 24, 112, 32))
+        quit_btn.setTitle_("Quit shout")
+        quit_btn.setBezelStyle_(NSBezelStyleRounded)
+        quit_btn.setTarget_(self)
+        quit_btn.setAction_("quitApp:")
+        view.addSubview_(quit_btn)
 
     # ----------------------------------------------------------- actions
 
@@ -252,6 +261,13 @@ class SetupController(NSObject):
         except Exception as exc:
             self.status.setStringValue_(f"{step.title}: {exc}")
         self.refresh()
+
+    def quitApp_(self, sender):
+        self.stop()
+        self.window.close()
+        quit_fn = getattr(self.app, "on_quit", None)
+        if quit_fn is not None:
+            quit_fn(None)
 
     def openLog_(self, sender):
         import paths

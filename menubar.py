@@ -539,8 +539,9 @@ class ShoutApp(rumps.App):
             return
         # Keep a reference: an NSWindowController that goes out of scope takes
         # its window with it.
-        self.settings = SettingsController.alloc().initWithHotkey_mode_history_onApply_(
-            self.cfg.hotkey, self.cfg.mode, self.store, self.apply_hotkey)
+        self.settings = SettingsController.alloc().initWithHotkey_mode_history_onApply_onQuit_(
+            self.cfg.hotkey, self.cfg.mode, self.store, self.apply_hotkey,
+            lambda: self.on_quit(None))
         self.settings.show()
 
     def apply_hotkey(self, hk, mode):

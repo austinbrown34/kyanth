@@ -47,7 +47,9 @@ from Foundation import NSObject
 
 from hotkey import MODE_HOLD, MODE_TOGGLE, ChordRecorder, Hotkey
 
-W, H = 500, 400
+W, H = 500, 452
+FOOTER = 52          # persistent strip below the tabs, visible on every tab
+TAB_H = H - 24 - FOOTER
 
 MODE_HELP = {
     MODE_HOLD: "Hold the key while you speak. Release to transcribe.",
@@ -72,7 +74,8 @@ def _label(text, x, y, w, h, size=13, bold=False, color=None):
 class SettingsController(NSObject):
     """Owns the window. `on_apply(hotkey, mode)` is called when the user saves."""
 
-    def initWithHotkey_mode_history_onApply_(self, hk, mode, hist, on_apply):
+    def initWithHotkey_mode_history_onApply_onQuit_(self, hk, mode, hist,
+                                                    on_apply, on_quit):
         self = objc.super(SettingsController, self).init()
         if self is None:
             return None
@@ -81,6 +84,7 @@ class SettingsController(NSObject):
         self.history = hist
         self.rows = []
         self.on_apply = on_apply
+        self.on_quit = on_quit
         self.monitor = None
         self.recording = False
         self.recorder = ChordRecorder()
@@ -98,8 +102,24 @@ class SettingsController(NSObject):
         self.window.setTitle_("shout")
         self.window.setReleasedWhenClosed_(False)
 
-        tabs = NSTabView.alloc().initWithFrame_(NSMakeRect(12, 12, W - 24, H - 24))
+        tabs = NSTabView.alloc().initWithFrame_(
+            NSMakeRect(12, FOOTER, W - 24, TAB_H))
         self.window.contentView().addSubview_(tabs)
+
+        #  Quitting lives outside the tab view so it is reachable from either
+        #  tab. It matters more than it looks: when the menu bar is full macOS
+        #  hides the status icon, and this window is then the only way to quit.
+        quit_btn = NSButton.alloc().initWithFrame_(NSMakeRect(16, 12, 132, 30))
+        quit_btn.setTitle_("Quit shout")
+        quit_btn.setBezelStyle_(NSBezelStyleRounded)
+        quit_btn.setTarget_(self)
+        quit_btn.setAction_("quitApp:")
+        self.window.contentView().addSubview_(quit_btn)
+
+        self.window.contentView().addSubview_(
+            _label("Dictation stops until you open shout again.",
+                   158, 17, W - 174, 18, 11,
+                   color=NSColor.secondaryLabelColor()))
 
         shortcut = NSTabViewItem.alloc().initWithIdentifier_("shortcut")
         shortcut.setLabel_("Shortcut")
@@ -115,7 +135,7 @@ class SettingsController(NSObject):
 
     def _shortcut_view(self):
         from AppKit import NSView
-        h = H - 60
+        h = TAB_H - 36
         v = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, W - 24, h))
 
         v.addSubview_(_label("Activation", 20, h - 44, 200, 20, 15, bold=True))
@@ -165,7 +185,7 @@ class SettingsController(NSObject):
 
     def _history_view(self):
         from AppKit import NSView
-        h = H - 60
+        h = TAB_H - 36
         v = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, W - 24, h))
 
         scroll = NSScrollView.alloc().initWithFrame_(
@@ -313,6 +333,18 @@ class SettingsController(NSObject):
             self.monitor = None
         self.recording = False
         self._refresh()
+
+    def quitApp_(self, sender):
+        alert = NSAlert.alloc().init()
+        alert.setMessageText_("Quit shout?")
+        alert.setInformativeText_(
+            "Dictation will stop working until you open shout again.")
+        alert.addButtonWithTitle_("Quit")
+        alert.addButtonWithTitle_("Cancel")
+        if alert.runModal() == 1000:          # first button
+            self.window.close()
+            if self.on_quit:
+                self.on_quit()
 
     def cancel_(self, sender):
         self._stop_recording()

@@ -167,38 +167,56 @@ def transcribe(path: Path, session: requests.Session) -> str:
 EDITABLE_ROLES = {"AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"}
 
 
-def focused_is_editable() -> bool | None:
-    """Can the focused element receive typed text? None when undeterminable.
+def focused_is_editable() -> tuple[bool | None, str]:
+    """(verdict, why). True / False / None, where None means undeterminable.
 
-    Uses the per-application element, not the system-wide one: querying
+    Only a POSITIVE answer of "not editable" may suppress the paste. An AX
+    error is not that answer — it means the question could not be asked, and an
+    earlier version returned False for it, so any app that failed to respond
+    got its dictation diverted to the clipboard while the user sat in a text
+    field waiting for text to appear.
+
+    Plenty of apps fail to answer: Electron and other non-native toolkits,
+    anything slow to service an AX request, and apps queried moments after
+    Accessibility was granted.
+
+    Uses the per-application element, not the system-wide one:
     kAXFocusedUIElementAttribute on AXUIElementCreateSystemWide returns
-    kAXErrorCannotComplete (-25204) here even with Accessibility granted.
+    kAXErrorCannotComplete (-25204) even with Accessibility granted.
     """
     try:
         app = NSWorkspace.sharedWorkspace().frontmostApplication()
         if app is None:
-            return None
+            return None, "no frontmost app"
         element = AXUIElementCreateApplication(app.processIdentifier())
         err, focused = AXUIElementCopyAttributeValue(
             element, kAXFocusedUIElementAttribute, None)
-        if err != 0 or focused is None:
-            return False
+        if err != 0:
+            return None, f"AX error {err}"
+        if focused is None:
+            # Not proof of anything — many apps simply do not report focus.
+            return None, "app reports no focused element"
+
         err, role = AXUIElementCopyAttributeValue(focused, kAXRoleAttribute, None)
+        role_name = str(role) if err == 0 else "?"
         if err == 0 and role in EDITABLE_ROLES:
-            return True
+            return True, role_name
+
         err, settable = AXUIElementIsAttributeSettable(
             focused, kAXValueAttribute, None)
-        return bool(settable) if err == 0 else None
-    except Exception:
-        return None
+        if err != 0:
+            return None, f"{role_name}, settable unknown"
+        return bool(settable), f"{role_name}, settable={bool(settable)}"
+    except Exception as exc:
+        return None, f"exception: {exc}"
 
 
-def paste(text: str) -> str:
-    """Returns "pasted" or "clipboard".
+def paste(text: str) -> tuple[str, str]:
+    """Returns (outcome, why). Outcome is "pasted" or "clipboard".
 
-    When nothing can receive the text, the transcription is left on the
-    clipboard instead of being restored away — losing a finished dictation
-    because focus was in the wrong place is the worst possible outcome.
+    Pasting is the default. Only a positive "the focused element cannot take
+    text" suppresses it; anything uncertain still pastes, and additionally
+    leaves the text on the clipboard as a safety net.
     """
     pb = NSPasteboard.generalPasteboard()
     saved = pb.stringForType_(NSPasteboardTypeString)
@@ -206,9 +224,9 @@ def paste(text: str) -> str:
     pb.clearContents()
     pb.setString_forType_(text, NSPasteboardTypeString)
 
-    editable = focused_is_editable()
+    editable, why = focused_is_editable()
     if editable is False:
-        return "clipboard"          # nothing to paste into; keep the text
+        return "clipboard", why          # nothing to paste into; keep the text
 
     for is_down in (True, False):
         event = CGEventCreateKeyboardEvent(None, KEYCODE_V, is_down)
@@ -216,8 +234,9 @@ def paste(text: str) -> str:
         CGEventPost(kCGHIDEventTap, event)
         time.sleep(0.008)
 
-    # Only reclaim the clipboard when the paste definitely had a target.
-    # If we couldn't tell, leave the transcription there as a safety net.
+    # Reclaim the clipboard only when the target was confirmed. When it was
+    # merely probable, the text stays on the clipboard too, so a paste that
+    # silently went nowhere is still recoverable with Cmd-V.
     if editable is True and saved is not None:
         def restore():
             pb.clearContents()
@@ -225,7 +244,7 @@ def paste(text: str) -> str:
 
         threading.Timer(CLIPBOARD_RESTORE_DELAY, restore).start()
 
-    return "pasted" if editable is True else "clipboard"
+    return "pasted", why if editable is True else f"{why} — kept on clipboard too"
 
 
 def frontmost_app() -> str:
@@ -339,13 +358,15 @@ def _handle(job, cfg: Config, session, verbose, on_state, on_result, cues=None) 
 
     # Paste before notifying the UI: text landing in the field is the job, and
     # it must not depend on a menu update succeeding.
-    where = paste(text)
+    where, why = paste(text)
     if cues:
         cues.play("clipboard" if where == "clipboard" else "stop")
     on_state("idle")
     trim_note = f" -{trimmed:.1f}s" if trimmed >= 0.1 else ""
     tag = "" if where == "pasted" else "  [CLIPBOARD ONLY]"
     print(f"  [{t1 - t0:.2f}s / {secs:.1f}s{trim_note} / {app_name}]{tag} -> {text}")
+    if verbose:
+        print(f"      focus: {why}")
     on_result(text, secs, (t1 - t0) * 1000, where)
 
 
