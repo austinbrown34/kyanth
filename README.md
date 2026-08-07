@@ -92,7 +92,13 @@ xcrun notarytool store-credentials shout-notary \
   --password <app-specific-password>      # appleid.apple.com -> Sign-In and Security
 
 ./build_release.sh --notarize
+./publish_release.sh                      # uploads to the GitHub release
 ```
+
+`publish_release.sh` **refuses to upload a build that is not notarized.** It mounts the
+DMG and checks for a stapled ticket on both the disk image and the app, plus a passing
+`spctl` assessment, before touching the release. See
+[Engineering notes](#engineering-notes) for why that guard exists.
 
 An app-specific password is not your Apple ID password — generate one at
 [appleid.apple.com](https://appleid.apple.com).
@@ -645,7 +651,27 @@ peak_rms × 0.08))`. Never demand more than a fraction of the loudest frame; kee
 silence isn't read as one very quiet speaker. The same clip now keeps all 4.7 s and
 transcribes in full.
 
-#### A setup checklist must not gate on a check that can be wrong
+#### A notarized artifact stops being notarized the moment you rebuild it
+
+The DMG was notarized and verified. Then it was rebuilt four times during unrelated work
+using plain `build_release.sh` — which signs but does *not* notarize — and each result was
+uploaded over the good asset with `gh release upload --clobber`. Users downloaded a
+signed-but-unnotarized build and got *"Apple could not verify shout is free of malware."*
+
+Nothing objected. The build printed one quiet line when `--notarize` was omitted, and the
+upload was a raw `gh` command with no idea what it was publishing.
+
+Two guards now. `build_release.sh` ends by validating the artifact's own stapled ticket
+and printing either `NOTARIZED` or a loud `*** NOT NOTARIZED ***`. And publishing goes
+through `publish_release.sh`, which verifies the DMG ticket, the app ticket, and `spctl`
+before uploading, and exits non-zero otherwise — it caught exactly this case on its first
+real use.
+
+The general shape is the recurring one in this project: a property that was verified once
+and then silently invalidated by a later step. Checking it at the point of use, rather
+than trusting that it still holds, is the only thing that works.
+
+### A setup checklist must not gate on a check that can be wrong
 
 Input Monitoring was a hard requirement in the wizard, mirroring the same mistake made
 earlier in `install_tap()`. A user reported step 3 stuck red — while steps 4, 5 and 6 were

@@ -165,6 +165,15 @@ fi
 
 echo
 echo "built $DMG  ($(du -h "$DMG" | cut -f1))"
-[ "$NOTARIZE" -eq 0 ] && [ "$ADHOC" -eq 0 ] && \
-  echo "not notarized — first launch elsewhere needs right-click > Open"
+
+# State the notarization verdict plainly, every time. A previous build printed
+# only a quiet one-line note when --notarize was omitted, and the unnotarized
+# DMG was then published over a good one.
+if xcrun stapler validate "$DMG" >/dev/null 2>&1; then
+  echo "NOTARIZED — opens with no Gatekeeper warning. Publish: ./publish_release.sh"
+else
+  echo "*** NOT NOTARIZED ***"
+  echo "    Users will see \"Apple could not verify shout is free of malware\"."
+  echo "    For a build you intend to ship, run: ./build_release.sh --notarize"
+fi
 exit 0
