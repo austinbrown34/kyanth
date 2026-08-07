@@ -305,12 +305,12 @@ class ShoutApp(rumps.App):
         """Opening shout again from the Applications folder should surface
         Settings rather than silently doing nothing."""
         global _reopen_target
-        _reopen_target = self.on_settings
+        _reopen_target = self.on_reopen
 
         # Held on self: the observer is not retained by the notification
         # centre, and a collected proxy stops delivering silently.
         self._note_proxy = _NoteProxy.alloc().initWithCallback_(
-            lambda: AppHelper.callAfter(self.on_settings))
+            lambda: AppHelper.callAfter(self.on_reopen))
         NSDistributedNotificationCenter.defaultCenter(
         ).addObserver_selector_name_object_(
             self._note_proxy, "handle:", SHOW_SETTINGS_NOTE, None)
@@ -511,6 +511,18 @@ class ShoutApp(rumps.App):
         self.cfg = config_mod.load()
         rumps.notification("shout", "Config reloaded",
                            "Model changes need a server restart.")
+
+    def on_reopen(self, _=None):
+        """Re-opening from Applications must land on whatever the user needs.
+
+        It previously always showed Settings — so a user who closed the setup
+        window with permissions still missing had no way back to the guide,
+        and a hidden menu-bar icon left them with no route at all.
+        """
+        if self.daemon is None or self.daemon.tap is None:
+            self.show_setup()
+        else:
+            self.on_settings()
 
     def show_setup(self, _=None):
         existing = getattr(self, "setup", None)
