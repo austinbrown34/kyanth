@@ -303,6 +303,7 @@ class SettingsController(NSObject):
 
             if kind == NSEventTypeKeyDown:
                 code = event.keyCode()
+                print(f"[record] keyDown code={code} flags=0x{flags:08x}", flush=True)
                 if code == 53:                       # Escape cancels
                     self._stop_recording()
                     return None
@@ -312,6 +313,13 @@ class SettingsController(NSObject):
 
             if kind == NSEventTypeFlagsChanged:
                 result = self.recorder.on_flags(flags)
+                #  Logged because chord capture depends on the device-dependent
+                #  modifier bits, and whether a given keyboard supplies them is
+                #  not otherwise observable.
+                from hotkey import keys_down
+                print(f"[record] flags=0x{flags:08x} down={keys_down(flags)} "
+                      f"-> {result[0] if result else None}"
+                      f"{' ' + result[1].label() if result else ''}", flush=True)
                 if result is None:
                     return None
                 what, hk = result
