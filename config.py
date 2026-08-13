@@ -23,6 +23,11 @@ import paths
 ROOT = paths.resources()
 SETTINGS_PATH = paths.settings_file()
 
+#  Bumped when the shape of settings.json changes. Unknown keys from a NEWER
+#  build are preserved on save rather than dropped, so downgrading and
+#  upgrading again does not silently discard the user's choices.
+SCHEMA_VERSION = 2
+
 
 def mark_login_offered() -> None:
     """Remember that open-at-login was registered once, so a user who turns it
@@ -42,15 +47,25 @@ def load_settings() -> dict:
 
 
 def save_settings(hotkey: Hotkey, mode: str, sound: bool | None = None,
-                  volume: float | None = None) -> None:
+                  volume: float | None = None,
+                  input_device: str | None = ..., ) -> None:
     current = load_settings()
-    data = {
+    #  Start from what is already on disk so keys written by a newer build
+    #  survive a save from an older one.
+    data = dict(current)
+    data.update({
         "hotkey": hotkey.to_dict(),
         "mode": mode,
         "sound": current.get("sound", True) if sound is None else bool(sound),
         "volume": current.get("volume", 0.35) if volume is None else float(volume),
         "login_offered": current.get("login_offered", False),
-    }
+        #  Stored by name, not index: indices are reassigned whenever devices
+        #  are plugged in or removed, so a saved index silently becomes a
+        #  different microphone.
+        "input_device": (current.get("input_device")
+                         if input_device is ... else input_device),
+        "schema": SCHEMA_VERSION,
+    })
     SETTINGS_PATH.write_text(json.dumps(data, indent=2) + "\n")
 
 
@@ -66,6 +81,7 @@ class Config:
     mode: str = MODE_HOLD
     sound: bool = True
     volume: float = 0.35
+    input_device: str | None = None
 
     def profile_for(self, app_name: str) -> Profile:
         return self.profiles.get(app_name) or self.profiles.get("default") or Profile()
@@ -107,4 +123,5 @@ def load(path: Path | None = None) -> Config:
         mode=mode,
         sound=bool(settings.get("sound", True)),
         volume=float(settings.get("volume", 0.35)),
+        input_device=settings.get("input_device") or None,
     )

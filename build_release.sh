@@ -48,6 +48,13 @@ fi
 # Import every module for real. `py_compile` only parses — it never executes a
 # class body, so pyobjc selector errors (BadPrototypeError) sail through it and
 # surface only when the frozen app refuses to launch.
+# Version must match in both places or the upgrade handover compares against
+# the wrong number.
+SPEC_V="$(grep -m1 '^VERSION = ' shout.spec | cut -d'"' -f2)"
+MOD_V="$(grep -m1 '^VERSION = ' version.py | cut -d'"' -f2)"
+[ "$SPEC_V" = "$MOD_V" ] || {
+  echo "version mismatch: shout.spec=$SPEC_V version.py=$MOD_V" >&2; exit 1; }
+
 echo "==> import check"
 uv run python -c "
 import importlib, sys

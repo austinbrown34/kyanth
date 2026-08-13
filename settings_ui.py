@@ -32,6 +32,7 @@ from AppKit import (
     NSMakeRect,
     NSPasteboard,
     NSPasteboardTypeString,
+    NSPopUpButton,
     NSScrollView,
     NSSegmentedControl,
     NSTableColumn,
@@ -47,7 +48,7 @@ from Foundation import NSObject
 
 from hotkey import MODE_HOLD, MODE_TOGGLE, ChordRecorder, Hotkey
 
-W, H = 500, 452
+W, H = 500, 530
 FOOTER = 52          # persistent strip below the tabs, visible on every tab
 TAB_H = H - 24 - FOOTER
 
@@ -74,8 +75,8 @@ def _label(text, x, y, w, h, size=13, bold=False, color=None):
 class SettingsController(NSObject):
     """Owns the window. `on_apply(hotkey, mode)` is called when the user saves."""
 
-    def initWithHotkey_mode_history_onApply_onQuit_(self, hk, mode, hist,
-                                                    on_apply, on_quit):
+    def initWithHotkey_mode_history_device_onApply_onQuit_onSetup_(
+            self, hk, mode, hist, device, on_apply, on_quit, on_setup):
         self = objc.super(SettingsController, self).init()
         if self is None:
             return None
@@ -83,8 +84,10 @@ class SettingsController(NSObject):
         self.mode = mode if mode in (MODE_HOLD, MODE_TOGGLE) else MODE_HOLD
         self.history = hist
         self.rows = []
+        self.input_device = device
         self.on_apply = on_apply
         self.on_quit = on_quit
+        self.on_setup = on_setup
         self.monitor = None
         self.recording = False
         self.recorder = ChordRecorder()
@@ -116,10 +119,19 @@ class SettingsController(NSObject):
         quit_btn.setAction_("quitApp:")
         self.window.contentView().addSubview_(quit_btn)
 
+        setup_btn = NSButton.alloc().initWithFrame_(NSMakeRect(156, 12, 148, 30))
+        setup_btn.setTitle_("Re-run Setup…")
+        setup_btn.setBezelStyle_(NSBezelStyleRounded)
+        setup_btn.setTarget_(self)
+        setup_btn.setAction_("runSetup:")
+        self.window.contentView().addSubview_(setup_btn)
+
+        #  Version on screen, so "did the update actually take?" is answerable
+        #  without opening a log file.
+        import version as _v
         self.window.contentView().addSubview_(
-            _label("Dictation stops until you open shout again.",
-                   158, 17, W - 174, 18, 11,
-                   color=NSColor.secondaryLabelColor()))
+            _label(f"v{_v.VERSION}", W - 90, 18, 70, 18, 11,
+                   color=NSColor.tertiaryLabelColor()))
 
         shortcut = NSTabViewItem.alloc().initWithIdentifier_("shortcut")
         shortcut.setLabel_("Shortcut")
@@ -168,6 +180,25 @@ class SettingsController(NSObject):
         self.hint = _label("", 20, h - 226, W - 64, 18, 11,
                            color=NSColor.secondaryLabelColor())
         v.addSubview_(self.hint)
+
+        v.addSubview_(_label("Microphone", 20, h - 274, 200, 20, 15, bold=True))
+        self.device_menu = NSPopUpButton.alloc().initWithFrame_pullsDown_(
+            NSMakeRect(20, h - 312, W - 64, 26), False)
+        #  Listed by name. A saved index would silently point at a different
+        #  microphone as soon as any audio device is added or removed.
+        import shout as _shout
+        self.device_menu.addItemWithTitle_("System default")
+        for name in _shout.input_devices():
+            self.device_menu.addItemWithTitle_(name)
+        if self.input_device:
+            idx = self.device_menu.indexOfItemWithTitle_(self.input_device)
+            if idx >= 0:
+                self.device_menu.selectItemAtIndex_(idx)
+        v.addSubview_(self.device_menu)
+
+        v.addSubview_(_label(
+            "Pick a specific microphone if the default is a virtual device.",
+            20, h - 334, W - 64, 18, 11, color=NSColor.secondaryLabelColor()))
 
         cancel = NSButton.alloc().initWithFrame_(NSMakeRect(W - 214, 14, 84, 32))
         cancel.setTitle_("Cancel")
@@ -342,6 +373,11 @@ class SettingsController(NSObject):
         self.recording = False
         self._refresh()
 
+    def runSetup_(self, sender):
+        self.window.close()
+        if self.on_setup:
+            self.on_setup()
+
     def quitApp_(self, sender):
         alert = NSAlert.alloc().init()
         alert.setMessageText_("Quit shout?")
@@ -360,7 +396,9 @@ class SettingsController(NSObject):
 
     def save_(self, sender):
         self._stop_recording()
-        self.on_apply(self.hotkey, self.mode)
+        title = str(self.device_menu.titleOfSelectedItem() or "")
+        device = None if title == "System default" else title
+        self.on_apply(self.hotkey, self.mode, device)
         self.window.close()
 
     # ------------------------------------------------------------- show

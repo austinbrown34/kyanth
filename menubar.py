@@ -28,6 +28,7 @@ import history as history_mod
 import loginitem
 import shout
 import sounds
+import version
 from hotkey import MODE_HOLD
 from settings_ui import SettingsController
 from setup_ui import SetupController
@@ -198,6 +199,7 @@ class ShoutApp(rumps.App):
             rumps.MenuItem("Edit Config…", callback=self.on_edit_config),
             rumps.MenuItem("Reload Config", callback=self.on_reload),
             rumps.MenuItem("Restart Model Server", callback=self.on_restart_server),
+            rumps.MenuItem("Check for Updates…", callback=self.on_check_updates),
             rumps.MenuItem("Open Log", callback=self.on_open_log),
             None,
             rumps.MenuItem("Quit shout", callback=self.on_quit),
@@ -264,8 +266,11 @@ class ShoutApp(rumps.App):
             return True
 
         try:
-            self.recorder = shout.Recorder(lead_skip_ms=self.cues.lead_ms)
-            print(f"[start] input device: {self.recorder._stream.device}")
+            self.recorder = shout.Recorder(
+                device=shout.resolve_input_device(self.cfg.input_device),
+                lead_skip_ms=self.cues.lead_ms)
+            print(f"[start] input device: {self.recorder._stream.device} "
+                  f"({self.cfg.input_device or 'system default'})")
         except Exception as e:
             print(f"[start] microphone unavailable: {e}")
             self.set_state("needs-permission")
@@ -284,6 +289,8 @@ class ShoutApp(rumps.App):
             self.recorder, self.jobs, verbose=True, on_state=self.set_state,
             binding=self.cfg.hotkey, mode=self.cfg.mode, cues=self.cues,
         )
+        self.daemon.on_hint = lambda title, msg: AppHelper.callAfter(
+            rumps.notification, "shout", title, msg)
         print(f"[start] hotkey={self.cfg.hotkey.label()} mode={self.cfg.mode}")
         if not self.install_tap():
             # Ask macOS to show its own "open System Settings" prompt, then
@@ -324,7 +331,9 @@ class ShoutApp(rumps.App):
             return
         if self.recorder is None:
             try:
-                self.recorder = shout.Recorder(lead_skip_ms=self.cues.lead_ms)
+                self.recorder = shout.Recorder(
+                    device=shout.resolve_input_device(self.cfg.input_device),
+                    lead_skip_ms=self.cues.lead_ms)
             except Exception:
                 return
             threading.Thread(
@@ -412,6 +421,12 @@ class ShoutApp(rumps.App):
         model_path = paths.model_path(self.cfg.model)
         if not model_path.exists():
             problems.append(f"Model not found\n{model_path}")
+        elif model_path.stat().st_size < 10_000_000:
+            #  A truncated download otherwise fails at the first dictation,
+            #  where it looks like a transcription bug rather than a bad file.
+            problems.append(
+                f"Model file looks truncated "
+                f"({model_path.stat().st_size // 1_000_000} MB)\n{model_path}")
         elif find_server_binary() is None:
             problems.append("whisper-server not found\nbrew install whisper-cpp")
         elif not self.server.start():
@@ -507,6 +522,23 @@ class ShoutApp(rumps.App):
         if not ok:
             rumps.notification("shout", "Could not change Open at Login", msg)
 
+    def _reopen_input_device(self):
+        """Switch microphones without a restart."""
+        try:
+            if self.recorder is not None:
+                self.recorder.close()
+            index = shout.resolve_input_device(self.cfg.input_device)
+            self.recorder = shout.Recorder(device=index,
+                                           lead_skip_ms=self.cues.lead_ms)
+            if self.daemon is not None:
+                self.daemon.recorder = self.recorder
+            print(f"[audio] input device -> "
+                  f"{self.cfg.input_device or 'system default'} (index {index})")
+        except Exception as exc:
+            print(f"[audio] could not open {self.cfg.input_device}: {exc}")
+            rumps.notification("shout", "Microphone unavailable",
+                               f"Could not open {self.cfg.input_device}.")
+
     def on_reload(self, _):
         self.cfg = config_mod.load()
         rumps.notification("shout", "Config reloaded",
@@ -519,10 +551,47 @@ class ShoutApp(rumps.App):
         window with permissions still missing had no way back to the guide,
         and a hidden menu-bar icon left them with no route at all.
         """
+        # Upgrade check belongs HERE, not in main(): `open -a` on a running app
+        # sends a reopen event and never starts a second process, so the new
+        # bundle's startup code is never reached. The running (old) instance is
+        # the only one that sees the click, so it has to notice it has been
+        # replaced and hand over.
+        if self._relaunch_if_replaced():
+            return
         if self.daemon is None or self.daemon.tap is None:
             self.show_setup()
         else:
             self.on_settings()
+
+    def _relaunch_if_replaced(self) -> bool:
+        """True if a newer build is installed and we relaunched into it."""
+        try:
+            installed = version.installed_version()
+        except Exception:
+            return False
+        if not installed or not version.is_newer(installed, version.VERSION):
+            return False
+
+        print(f"[upgrade] {installed} is installed, running {version.VERSION} "
+              f"— handing over")
+        rumps.notification("shout", f"Updating to {installed}",
+                           "shout will restart in a moment.")
+        bundle = version.installed_bundle()
+        version.clear_running()
+        self.server.stop()
+        if self.recorder:
+            try:
+                self.recorder.close()
+            except Exception:
+                pass
+        # Detach the relaunch so it survives this process exiting, and give
+        # the lock time to be released before the new copy grabs it.
+        subprocess.Popen(
+            ["/bin/sh", "-c",
+             f'sleep 1.5; open -a "{bundle}"'],
+            start_new_session=True)
+        AppHelper.callAfter(os._exit, 0)
+        return True
 
     def show_setup(self, _=None):
         existing = getattr(self, "setup", None)
@@ -539,14 +608,20 @@ class ShoutApp(rumps.App):
             return
         # Keep a reference: an NSWindowController that goes out of scope takes
         # its window with it.
-        self.settings = SettingsController.alloc().initWithHotkey_mode_history_onApply_onQuit_(
-            self.cfg.hotkey, self.cfg.mode, self.store, self.apply_hotkey,
-            lambda: self.on_quit(None))
+        self.settings = SettingsController.alloc(
+        ).initWithHotkey_mode_history_device_onApply_onQuit_onSetup_(
+            self.cfg.hotkey, self.cfg.mode, self.store, self.cfg.input_device,
+            self.apply_hotkey, lambda: self.on_quit(None),
+            lambda: AppHelper.callAfter(self.show_setup))
         self.settings.show()
 
-    def apply_hotkey(self, hk, mode):
-        config_mod.save_settings(hk, mode, sound=self.cues.enabled)
+    def apply_hotkey(self, hk, mode, device=...):
+        config_mod.save_settings(hk, mode, sound=self.cues.enabled,
+                                 input_device=device)
+        previous_device = self.cfg.input_device
         self.cfg = config_mod.load()
+        if self.cfg.input_device != previous_device:
+            self._reopen_input_device()
         if self.daemon:
             self.daemon.rebind(hk, mode)      # live, no restart
         self._apply_state("idle")
@@ -564,11 +639,27 @@ class ShoutApp(rumps.App):
         rumps.notification("shout", "Model server",
                            "Restarted" if ok else f"Failed — see {LOG}")
 
+    def on_check_updates(self, _=None):
+        def work():
+            tag, msg = version.latest_release()
+            if tag is None:
+                body = msg
+            elif version.is_newer(tag, version.VERSION):
+                body = f"Version {tag} is available (you have {version.VERSION})."
+                AppHelper.callAfter(subprocess.run,
+                                    ["open", version.RELEASE_PAGE])
+            else:
+                body = f"shout {version.VERSION} is up to date."
+            AppHelper.callAfter(rumps.notification, "shout", "Updates", body)
+            print(f"[update] {body}")
+        threading.Thread(target=work, daemon=True).start()
+
     def on_open_log(self, _):
         LOGDIR.mkdir(parents=True, exist_ok=True)
         subprocess.run(["open", str(LOGDIR)])
 
     def on_quit(self, _):
+        version.clear_running()
         self.server.stop()
         if self.recorder:
             self.recorder.close()
@@ -612,16 +703,32 @@ def main() -> int:
     _redirect_output()
     lock = acquire_single_instance_lock()
     if lock is None:
-        print("already running — asking the live instance to show Settings",
-              file=sys.stderr)
-        NSDistributedNotificationCenter.defaultCenter(
-        ).postNotificationName_object_userInfo_deliverImmediately_(
-            SHOW_SETTINGS_NOTE, None, None, True)
-        return 0
+        # An upgrade must actually take effect. Without this the newly
+        # installed build exits here and the OLD process keeps running, so the
+        # user gets none of the fixes and no hint as to why.
+        may_take_over, why = version.supersede_older()
+        print(f"[upgrade] {why}", file=sys.stderr)
+        if may_take_over:
+            for _ in range(20):
+                lock = acquire_single_instance_lock()
+                if lock is not None:
+                    break
+                time.sleep(0.25)
+        if lock is None:
+            print("already running — asking the live instance to show Settings",
+                  file=sys.stderr)
+            NSDistributedNotificationCenter.defaultCenter(
+            ).postNotificationName_object_userInfo_deliverImmediately_(
+                SHOW_SETTINGS_NOTE, None, None, True)
+            return 0
+
+    version.record_running()
+    print(f"[start] shout {version.VERSION}")
 
     app = ShoutApp()
 
     def cleanup(*_):
+        version.clear_running()
         app.server.stop()
         # os._exit, not sys.exit: SystemExit raised in a signal handler is
         # swallowed by the NSApplication run loop and the process survives.

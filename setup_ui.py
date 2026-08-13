@@ -245,7 +245,18 @@ class SetupController(NSObject):
 
         #  A user stuck partway through setup, with the status icon hidden by a
         #  full menu bar, otherwise has no way to quit the app at all.
-        quit_btn = NSButton.alloc().initWithFrame_(NSMakeRect(148, 24, 112, 32))
+        settings_btn = NSButton.alloc().initWithFrame_(NSMakeRect(148, 24, 112, 32))
+        settings_btn.setTitle_("Settings…")
+        settings_btn.setBezelStyle_(NSBezelStyleRounded)
+        settings_btn.setTarget_(self)
+        settings_btn.setAction_("openSettings:")
+        view.addSubview_(settings_btn)
+
+        import version as _v
+        view.addSubview_(_text(f"v{_v.VERSION}", W - 210, 30, 60, 18, 11,
+                               color=NSColor.tertiaryLabelColor()))
+
+        quit_btn = NSButton.alloc().initWithFrame_(NSMakeRect(268, 24, 112, 32))
         quit_btn.setTitle_("Quit shout")
         quit_btn.setBezelStyle_(NSBezelStyleRounded)
         quit_btn.setTarget_(self)
@@ -261,6 +272,15 @@ class SetupController(NSObject):
         except Exception as exc:
             self.status.setStringValue_(f"{step.title}: {exc}")
         self.refresh()
+
+    def openSettings_(self, sender):
+        """Reachable from setup: changing the shortcut or the microphone is
+        often what step 7 needs, and there was no route to it from here."""
+        self.stop()
+        self.window.close()
+        opener = getattr(self.app, "on_settings", None)
+        if opener is not None:
+            opener(None)
 
     def quitApp_(self, sender):
         self.stop()

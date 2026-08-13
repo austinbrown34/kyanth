@@ -231,8 +231,14 @@ see [Benchmarks](#benchmarks).
 
 ## Updating and removing
 
-**Update:** drag the new build over the old one in Applications. Your config, settings
-and history live in `~/Library/Application Support/shout` and are untouched.
+**Update:** drag the new build over the old one in Applications, then open it. The running
+copy notices it has been replaced, hands over, and relaunches into the new version — you
+just see a brief "Updating to x.y.z" notification. Your config, settings and history live
+in `~/Library/Application Support/shout` and are untouched.
+
+> **Upgrading from 1.0.0 specifically requires quitting shout first** (menu → Quit shout,
+> or the Quit button in either window). The handover runs in the process that receives the
+> click, and 1.0.0 predates that code. Every upgrade after this one is automatic.
 
 Because the app is signed with a stable Developer ID, macOS keeps your permission grants
 across updates. (An ad-hoc signature changes identity on every build, which would make
@@ -674,6 +680,30 @@ real use.
 The general shape is the recurring one in this project: a property that was verified once
 and then silently invalidated by a later step. Checking it at the point of use, rather
 than trusting that it still holds, is the only thing that works.
+
+### An upgrade only takes effect if the running process cooperates
+
+Dragging a new build over a running one leaves the OLD process running. The single-instance
+lock makes the new copy exit immediately, and re-opening from Applications surfaces a
+window belonging to the stale process — same PID, old code, none of the fixes, no
+indication why. Reproduced before any code was written, and it silently affected several
+real updates.
+
+The first fix was in the wrong place: the new build's `main()`. But `open -a` on a running
+app **never starts a second process** — macOS sends `applicationShouldHandleReopen:` to the
+existing one — so that code was never reached. The check has to live in the *running*
+process, which is the only one that sees the click. It compares its compiled-in version
+against `CFBundleShortVersionString` of the bundle on disk, and if it has been replaced:
+notifies, releases the lock, stops the server, and relaunches into the new copy.
+
+Testing this produced three false failures worth knowing about. Ad-hoc-signed test builds
+have a different code identity, so macOS treats them as new apps with no TCC grants; they
+stall at the setup window and never register the reopen handler. And one run compared 1.1.0
+against 1.1.0, where refusing to hand over is correct. The mechanism only proved itself once
+both builds were properly signed and genuinely different versions.
+
+One case cannot be fixed in code: upgrading *from* a build that predates the handover. The
+old process has no such logic, so that upgrade requires quitting first.
 
 ### "Couldn't tell" is not "no"
 

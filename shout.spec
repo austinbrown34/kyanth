@@ -12,7 +12,7 @@ import plistlib
 from pathlib import Path
 
 ROOT = Path(SPECPATH)
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 datas = [
     (str(ROOT / "assets" / "shout.icns"), "assets"),
@@ -42,7 +42,7 @@ a = Analysis(
     datas=datas,
     hiddenimports=[
         "config", "history", "hotkey", "loginitem", "paths", "postprocess",
-        "settings_ui", "setup_ui", "shout", "sounds", "vad",
+        "settings_ui", "setup_ui", "shout", "sounds", "vad", "version",
     ],
     excludes=["tkinter", "matplotlib", "PIL", "pytest", "setuptools"],
     noarchive=False,

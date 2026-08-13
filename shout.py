@@ -247,6 +247,31 @@ def paste(text: str) -> tuple[str, str]:
     return "pasted", why if editable is True else f"{why} — kept on clipboard too"
 
 
+def resolve_input_device(name: str | None):
+    """Device *name* -> index, or None for the system default.
+
+    Indices shift when audio hardware is added or removed, so a stored index
+    can quietly point at a different microphone. Names are stable.
+    """
+    if not name:
+        return None
+    try:
+        for i, dev in enumerate(sd.query_devices()):
+            if dev["max_input_channels"] > 0 and dev["name"] == name:
+                return i
+    except Exception:
+        pass
+    return None                      # fall back to the default, never fail
+
+
+def input_devices() -> list[str]:
+    try:
+        return [d["name"] for d in sd.query_devices()
+                if d["max_input_channels"] > 0]
+    except Exception:
+        return []
+
+
 def frontmost_app() -> str:
     app = NSWorkspace.sharedWorkspace().frontmostApplication()
     return app.localizedName() if app else "<unknown>"
@@ -384,6 +409,11 @@ class Daemon:
         self.tap = None
         self.t_press = 0.0
         self.enabled = True
+        #  Repeated too-short presses almost always mean the user is tapping
+        #  while in hold mode. Silently discarding them cost a real user an
+        #  hour, with the only evidence buried in a log file.
+        self.short_presses = 0
+        self.on_hint = None
         self.binding = binding or Hotkey()
         self.mode = mode
         self.cues = cues
@@ -428,7 +458,16 @@ class Daemon:
             self.on_state("idle")
             if self.verbose:
                 print(f"  ○ too short ({held:.2f}s), ignored")
+            self.short_presses += 1
+            if (self.short_presses >= 3 and self.mode == MODE_HOLD
+                    and self.on_hint is not None):
+                self.short_presses = 0
+                self.on_hint(
+                    "You are in hold mode",
+                    f"Hold {self.binding.label()} while speaking, or switch to "
+                    f"toggle in Settings.")
             return
+        self.short_presses = 0
         self.on_state("working")
         # Resolve the target app at release, not at press: the paste lands
         # wherever focus is now.
