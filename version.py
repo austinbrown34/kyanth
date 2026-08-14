@@ -20,7 +20,7 @@ from pathlib import Path
 import paths
 from paths import BUNDLE_ID
 
-VERSION = "2.0.2"
+VERSION = "2.0.3"
 
 
 def _parse(v: str) -> tuple:

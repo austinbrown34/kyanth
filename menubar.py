@@ -220,6 +220,8 @@ class ShoutApp(rumps.App):
         #  a user launch": a Settings window nobody asked for at every login is
         #  worse than one missing click.
         self.user_launched = None
+        self._ready = False
+        self._surfaced = False
         self._watch_launch()
         self._transcribe_timer = None
         self._transcribe_frame = 0
@@ -374,14 +376,47 @@ class ShoutApp(rumps.App):
 
         print("[start] event tap installed — ready")
         self.set_state("idle")
+        self._ready = True
         self._surface_on_user_launch()
         return True
+
+    def _seconds_since_login(self):
+        """Elapsed time since loginwindow started, i.e. since this login.
+
+        The launch flag alone is not enough to trust. Apple documents
+        NSApplicationLaunchIsDefaultLaunchKey as false for files, printing and
+        Services, and says nothing about login items — and a login item cannot
+        be started on demand to test, because launchd drops the service record
+        while the app is not running. So the flag is paired with something
+        measurable: the login item necessarily starts within seconds of login,
+        and a user clicking the app in Applications does not.
+
+        Returns None if it cannot be determined, which is treated as "too
+        early" — erring towards never opening a window nobody asked for.
+        """
+        try:
+            pid = subprocess.run(["pgrep", "-x", "loginwindow"],
+                                 capture_output=True, text=True,
+                                 timeout=2).stdout.split()[0]
+            etime = subprocess.run(["ps", "-o", "etime=", "-p", pid],
+                                   capture_output=True, text=True,
+                                   timeout=2).stdout.strip()
+        except (OSError, IndexError, subprocess.SubprocessError):
+            return None
+        #  [[dd-]hh:]mm:ss
+        days, _, rest = etime.rpartition("-")
+        parts = [int(x) for x in rest.split(":")] if rest else []
+        if not 2 <= len(parts) <= 3:
+            return None
+        seconds = parts[-1] + parts[-2] * 60 + (parts[0] * 3600 if len(parts) == 3 else 0)
+        return seconds + (int(days) * 86400 if days else 0)
 
     def _watch_launch(self):
         from Foundation import NSNotificationCenter
 
         def note(is_default):
             self.user_launched = is_default
+            self._surface_on_user_launch()
 
         #  Held on self: the notification centre does not retain observers, and
         #  a collected proxy stops delivering without saying so.
@@ -390,11 +425,26 @@ class ShoutApp(rumps.App):
             self._launch_probe, "handle:",
             "NSApplicationDidFinishLaunchingNotification", None)
 
+    LOGIN_GRACE_SEC = 120
+
     def _surface_on_user_launch(self):
-        """A cold start the user asked for should land somewhere visible."""
-        if not self.user_launched:
+        """A cold start the user asked for should land somewhere visible.
+
+        Both halves have to agree, and both arrive at unpredictable times —
+        didFinishLaunching fires after start() has already finished — so this
+        is called from each and does its work once.
+        """
+        if self._surfaced or not self._ready or self.user_launched is not True:
             return
-        print("[start] user launch — opening Settings", flush=True)
+        age = self._seconds_since_login()
+        if age is None or age < self.LOGIN_GRACE_SEC:
+            print(f"[start] cold start {age}s into this login — treating as "
+                  f"the login item, not opening a window", flush=True)
+            self._surfaced = True
+            return
+        self._surfaced = True
+        print(f"[start] user launch {age}s into this login — opening Settings",
+              flush=True)
         AppHelper.callAfter(self.on_settings)
 
     def _observe_show_settings(self):
