@@ -20,6 +20,7 @@ The eight checks and their behaviour are carried over unchanged.
 """
 
 import subprocess
+import time
 
 import objc
 from objc import python_method
@@ -108,6 +109,7 @@ class SetupController(NSObject):
         self.dictated = False        # set by the app when a transcription lands
         self.timer = None
         self.dupes_shown = None      # tri-state so the first layout always runs
+        self.last_probe = 0.0
         self.steps = self._build_steps()
         self._build_window()
         return self
@@ -162,10 +164,35 @@ class SetupController(NSObject):
             self._open_pane("Privacy_ListenEvent")
 
         def audio_ok():
-            #  Reads the one-shot probe from startup rather than opening the
-            #  device itself: this is polled every second, and probing here
-            #  would flash the microphone indicator continuously.
-            return app.recorder is not None and getattr(app, "mic_ok", False)
+            #  Normally this just reads the probe done at startup: the check
+            #  is polled every second, and opening the device here would flash
+            #  the microphone indicator continuously.
+            if app.recorder is None:
+                return False
+            if getattr(app, "mic_ok", False):
+                return True
+
+            #  But that probe ran before the user granted the microphone, so
+            #  on every first run it failed and would stay failed forever —
+            #  a row that cannot recover without a relaunch, in the one window
+            #  whose promise is that it re-checks itself. Re-probe once the
+            #  grant actually exists, rate-limited because each attempt does
+            #  open the device.
+            from AVFoundation import AVCaptureDevice, AVMediaTypeAudio
+            if AVCaptureDevice.authorizationStatusForMediaType_(
+                    AVMediaTypeAudio) != 3:
+                return False
+            now = time.monotonic()
+            if now - self.last_probe < 3.0:
+                return False
+            self.last_probe = now
+            try:
+                app.mic_ok = bool(app.recorder.probe())
+            except Exception:
+                app.mic_ok = False
+            print(f"[setup] re-probed input device: usable={app.mic_ok}",
+                  flush=True)
+            return app.mic_ok
 
         def server_ok():
             return app.server._listening()
