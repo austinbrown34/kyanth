@@ -863,6 +863,43 @@ It turned out to be already granted here, so it was not the cause of this bug �
 but `install_tap()` now checks both and `request_permissions()` prompts for both, because
 the failure mode is indistinguishable from a working app.
 
+### Installing over an existing bundle needs App Management, deleting it does not
+
+`ditto dist/shout.app /Applications/shout.app` over a bundle that already
+exists fails on every file with `Operation not permitted`. macOS App Management
+protects an installed app from being modified by another process unless the
+user has granted that process App Management rights — a terminal has not.
+
+Deleting the bundle and writing a fresh one is allowed, so the working
+sequence is `rm -rf` then `ditto`. Which puts a loaded gun in the script:
+
+```sh
+MNT=$(hdiutil attach x.dmg -nobrowse -quiet | ...)   # -quiet ate the output
+rm -rf /Applications/shout.app                        # ran anyway
+ditto "$MNT/shout.app" /Applications/shout.app        # source was ""
+```
+
+`-quiet` suppresses the mount table that the pipeline was parsing, so `$MNT`
+came back empty, the delete ran, and the copy had nothing to copy. The app was
+gone. **Verify the source before removing the destination**, and keep a copy
+you can put back:
+
+```sh
+[ -d "$SRC" ] && [ "$(plist_version "$SRC")" = "$EXPECTED" ] || exit 1
+ditto /Applications/shout.app /tmp/shout-backup.app
+rm -rf /Applications/shout.app
+ditto "$SRC" /Applications/shout.app || ditto /tmp/shout-backup.app /Applications/shout.app
+```
+
+A related trap: `ls -d /Volumes/shout*` picks the wrong volume when an earlier
+DMG is still attached, because the second mount becomes `/Volumes/shout 1`. It
+will silently install the older app. `hdiutil info` lists what is attached;
+detach it first.
+
+Permission grants survive the swap — TCC keys on the signing identity, not the
+inode — but the microphone can read as undetermined for a few seconds
+afterwards while TCC re-resolves.
+
 #### Why `open -a` and not the binary directly
 
 The LaunchAgent runs `/usr/bin/open -a shout.app` rather than the inner executable.
