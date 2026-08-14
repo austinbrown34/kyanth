@@ -15,7 +15,7 @@ competitive analysis and architecture.
 
 ### From the release DMG (recommended)
 
-1. Download `kyanth-1.0.0.dmg`
+1. Download the latest `kyanth-<version>.dmg` from [Releases](https://github.com/austinbrown34/kyanth/releases/latest)
 2. Open it and drag **Kyanth** to Applications
 3. Launch it from Applications
 
@@ -27,6 +27,22 @@ and the transcription engine all ship inside it. **No Homebrew, no Python, no `u
 nothing to build.**
 
 Requires **macOS 13+ on Apple Silicon**.
+
+### Upgrading from shout
+
+Kyanth is the same app under a new name. It is *not* an in-place update: the
+rename changed the bundle identifier, so macOS treats it as a different
+application entirely.
+
+1. Install Kyanth as above, then delete `/Applications/shout.app`
+2. Grant **Microphone**, **Accessibility** and **Input Monitoring** again —
+   permissions are attached to the old identifier and cannot be transferred
+3. Your history, shortcut, settings and vocabulary carry over automatically.
+   On first launch Kyanth moves `~/Library/Application Support/shout` to
+   `.../Kyanth`; the log records it as `[migrate] carried over`
+
+If you had shout set to open at login, re-check that in **Settings →
+Behaviour** — the login item is registered per bundle identifier too.
 
 ### First run — the setup window walks you through it
 
