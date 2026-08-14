@@ -48,7 +48,8 @@ def load_settings() -> dict:
 
 def save_settings(hotkey: Hotkey, mode: str, sound: bool | None = None,
                   volume: float | None = None,
-                  input_device: str | None = ..., ) -> None:
+                  input_device: str | None = ...,
+                  min_press_ms: int | None = None) -> None:
     current = load_settings()
     #  Start from what is already on disk so keys written by a newer build
     #  survive a save from an older one.
@@ -64,6 +65,10 @@ def save_settings(hotkey: Hotkey, mode: str, sound: bool | None = None,
         #  different microphone.
         "input_device": (current.get("input_device")
                          if input_device is ... else input_device),
+        #  The outcome model already has an `ignored` result for a press too
+        #  short to contain speech; the user should be able to move that line.
+        "min_press_ms": (current.get("min_press_ms", 250)
+                         if min_press_ms is None else int(min_press_ms)),
         "schema": SCHEMA_VERSION,
     })
     SETTINGS_PATH.write_text(json.dumps(data, indent=2) + "\n")
@@ -82,6 +87,7 @@ class Config:
     sound: bool = True
     volume: float = 0.35
     input_device: str | None = None
+    min_press_ms: int = 250
 
     def profile_for(self, app_name: str) -> Profile:
         return self.profiles.get(app_name) or self.profiles.get("default") or Profile()
@@ -124,4 +130,5 @@ def load(path: Path | None = None) -> Config:
         sound=bool(settings.get("sound", True)),
         volume=float(settings.get("volume", 0.35)),
         input_device=settings.get("input_device") or None,
+        min_press_ms=int(settings.get("min_press_ms", 250)),
     )

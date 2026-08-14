@@ -57,11 +57,37 @@ MOD_V="$(grep -m1 '^VERSION = ' version.py | cut -d'"' -f2)"
 
 echo "==> import check"
 uv run python -c "
-import importlib, sys
+import ast, collections, importlib, pathlib, sys
+
+# A pyobjc class name IS its Objective-C class name, so two modules defining
+# the same one is a hard crash — but only once both are loaded together, which
+# a single-module smoke test never does. Name the collision before importing,
+# because the runtime error does not say which other module claimed the name.
+OBJC = {'NSObject','NSView','NSWindow','NSPanel','NSButton','NSTextField',
+        'NSScrollView','NSTableView','NSApplication'}
+seen = collections.defaultdict(list)
+for f in sorted(pathlib.Path('.').glob('*.py')):
+    tree = ast.parse(f.read_text())
+    local = {n.name for n in tree.body if isinstance(n, ast.ClassDef)}
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef):
+            continue
+        bases = {b.id for b in node.bases if isinstance(b, ast.Name)}
+        attrs = [b for b in node.bases if isinstance(b, ast.Attribute)]
+        if bases & OBJC or bases & local or attrs:
+            seen[node.name].append(f.name)
+dupes = {k: v for k, v in seen.items() if len(v) > 1}
+if dupes:
+    for k, v in sorted(dupes.items()):
+        print(f'    Objective-C class name {k!r} defined in {\" and \".join(v)}',
+              file=sys.stderr)
+    sys.exit(1)
+
 for m in ('paths','config','hotkey','postprocess','vad','sounds','history',
-          'loginitem','shout','settings_ui','setup_ui','menubar'):
+          'loginitem','tokens','chrome','overlay','menuheader','history_view',
+          'shout','settings_ui','setup_ui','menubar'):
     importlib.import_module(m)
-print('    all modules import cleanly')
+print('    all modules import cleanly, no class-name collisions')
 " || { echo "import check failed — not building" >&2; exit 1; }
 
 # -------------------------------------------------------------- 3. build

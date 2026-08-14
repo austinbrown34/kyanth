@@ -19,7 +19,6 @@ import objc
 from objc import python_method
 from AppKit import (
     NSBezierPath,
-    NSColor,
     NSFont,
     NSFontAttributeName,
     NSForegroundColorAttributeName,

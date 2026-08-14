@@ -317,6 +317,7 @@ class ShoutApp(rumps.App):
         self.daemon = shout.Daemon(
             self.recorder, self.jobs, verbose=True, on_state=self.set_state,
             binding=self.cfg.hotkey, mode=self.cfg.mode, cues=self.cues,
+            min_press_ms=self.cfg.min_press_ms,
         )
         self.daemon.on_hint = lambda title, msg: AppHelper.callAfter(
             rumps.notification, "shout", title, msg)
@@ -374,6 +375,7 @@ class ShoutApp(rumps.App):
             self.daemon = shout.Daemon(
                 self.recorder, self.jobs, verbose=True, on_state=self.set_state,
                 binding=self.cfg.hotkey, mode=self.cfg.mode, cues=self.cues,
+                min_press_ms=self.cfg.min_press_ms,
             )
         if self.install_tap():
             timer.stop()
@@ -480,6 +482,13 @@ class ShoutApp(rumps.App):
 
         if self.daemon and not self.daemon.enabled:
             state = "disabled"
+
+        #  The Shortcut pane's "Keys arriving" pill lights from this. It is
+        #  the only way to tell a wrong chord apart from one another app
+        #  swallowed, so it has to reflect the daemon and not the recorder.
+        settings = getattr(self, "settings", None)
+        if settings is not None and settings.window.isVisible():
+            settings.push_state(state)
 
         #  Rebuild the status image only on a real change. rumps re-assigns
         #  .icon from inside its template setter, so a naive update allocated
@@ -589,6 +598,9 @@ class ShoutApp(rumps.App):
                 self.overlay.push_level(level)
                 self.header.level = level
                 self.header.setNeedsDisplay_(True)
+                settings = getattr(self, "settings", None)
+                if settings is not None and settings.window.isVisible():
+                    settings.push_level(level)
         except Exception:
             pass
 
@@ -597,7 +609,7 @@ class ShoutApp(rumps.App):
         rebuild is pushed to the main thread, because NSMenu — like all of
         AppKit — must not be mutated from a background thread."""
         self.store.add(history_mod.Entry(text, shout.frontmost_app(),
-                                         time.time(), ms, where))
+                                         time.time(), ms, where, secs))
         try:
             if where == "clipboard":
                 self.overlay.set_state(overlay_mod.CLIPBOARD)
@@ -750,11 +762,7 @@ class ShoutApp(rumps.App):
             return
         # Keep a reference: an NSWindowController that goes out of scope takes
         # its window with it.
-        self.settings = SettingsController.alloc(
-        ).initWithHotkey_mode_history_device_onApply_onQuit_onSetup_(
-            self.cfg.hotkey, self.cfg.mode, self.store, self.cfg.input_device,
-            self.apply_hotkey, lambda: self.on_quit(None),
-            lambda: AppHelper.callAfter(self.show_setup))
+        self.settings = SettingsController.alloc().initWithApp_(self)
         self.settings.show()
 
     def apply_hotkey(self, hk, mode, device=...):
@@ -770,6 +778,26 @@ class ShoutApp(rumps.App):
         print(f"[settings] hotkey={hk.label()} mode={mode}")
         rumps.notification("shout", "Shortcut updated",
                            f"{'Hold' if mode == MODE_HOLD else 'Toggle'}  {hk.label()}")
+
+    def apply_min_press(self, ms: int):
+        config_mod.save_settings(self.cfg.hotkey, self.cfg.mode,
+                                 sound=self.cues.enabled, min_press_ms=ms)
+        self.cfg = config_mod.load()
+        if self.daemon:
+            self.daemon.min_press_sec = max(0.0, ms / 1000.0)
+        print(f"[settings] min_press={ms}ms")
+
+    def apply_sound(self, on: bool):
+        self.cues.enabled = bool(on)
+        config_mod.save_settings(self.cfg.hotkey, self.cfg.mode, sound=bool(on))
+        self.cfg = config_mod.load()
+        print(f"[settings] sound={on}")
+
+    def apply_volume(self, level: float):
+        self.cues.volume = float(level)
+        config_mod.save_settings(self.cfg.hotkey, self.cfg.mode,
+                                 sound=self.cues.enabled, volume=float(level))
+        self.cfg = config_mod.load()
 
     def on_edit_config(self, _):
         subprocess.run(["open", "-t", str(paths.config_file())])

@@ -12,7 +12,7 @@ system accent is pink would break the relationship between the peak bar in the
 icon and the peak colour in the UI, which is the whole cohesion argument.
 """
 
-from AppKit import NSColor, NSFont, NSFontDescriptor
+from AppKit import NSColor, NSFont
 
 # ----------------------------------------------------------------- helpers
 

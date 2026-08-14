@@ -493,7 +493,8 @@ def _handle(job, cfg: Config, session, verbose, on_state, on_result, cues=None) 
 class Daemon:
     def __init__(self, recorder: Recorder, jobs: "queue.Queue", verbose: bool,
                  on_state=None, binding: Hotkey | None = None,
-                 mode: str = MODE_HOLD, cues=None):
+                 mode: str = MODE_HOLD, cues=None,
+                 min_press_ms: int = int(MIN_UTTERANCE_SEC * 1000)):
         self.recorder = recorder
         self.jobs = jobs
         self.verbose = verbose
@@ -510,6 +511,10 @@ class Daemon:
         self.binding = binding or Hotkey()
         self.mode = mode
         self.cues = cues
+        #  Exposed in Settings: the outcome model already has an `ignored`
+        #  result for a press too short to contain speech, so the user should
+        #  be able to move that line rather than live with one constant.
+        self.min_press_sec = max(0.0, min_press_ms / 1000.0)
         # Optional observer so a UI can reflect idle/recording without polling.
         self.on_state = on_state or (lambda state: None)
 
@@ -543,7 +548,7 @@ class Daemon:
         if self.verbose:
             peak = float(np.abs(audio).max()) if audio.size else 0.0
             print(f"  ○ stopped after {held:.2f}s, {audio.shape[0]} frames, peak {peak:.4f}")
-        if held < MIN_UTTERANCE_SEC:
+        if held < self.min_press_sec:
             # The case that cost four days of confusion: in hold mode a tap is
             # silently discarded. Now it says so.
             if self.cues:

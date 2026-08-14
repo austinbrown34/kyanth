@@ -16,7 +16,6 @@ Outputs:
 Run:  uv run make_icons.py
 """
 
-import math
 import subprocess
 import sys
 from pathlib import Path

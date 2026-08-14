@@ -22,12 +22,16 @@ class Entry:
     app: str
     when: float          # unix seconds
     ms: float            # transcription latency
-    where: str = "pasted"   # "pasted" | "clipboard"
+    where: str = "pasted"   # "pasted" | "clipboard" | "ignored"
+    #  Seconds of speech after trimming. The History table draws this as a bar,
+    #  so an eleven-second paragraph is findable without reading a word.
+    #  Entries written before this field existed carry 0.0 and draw no bar.
+    secs: float = 0.0
 
     def to_json(self) -> str:
         return json.dumps({
             "text": self.text, "app": self.app, "when": self.when,
-            "ms": self.ms, "where": self.where,
+            "ms": self.ms, "where": self.where, "secs": self.secs,
         })
 
     @classmethod
@@ -35,7 +39,7 @@ class Entry:
         try:
             return cls(str(d["text"]), str(d.get("app", "")),
                        float(d.get("when", 0)), float(d.get("ms", 0)),
-                       str(d.get("where", "pasted")))
+                       str(d.get("where", "pasted")), float(d.get("secs", 0)))
         except (KeyError, TypeError, ValueError):
             return None
 
@@ -92,6 +96,17 @@ class History:
             tmp.replace(self.path)
         except OSError:
             pass
+
+    def delete(self, entry: Entry) -> bool:
+        """Remove one entry. Deletion is per-row in the UI because "clear
+        everything" is the wrong tool for one line you did not mean to say."""
+        with self._lock:
+            try:
+                self.entries.remove(entry)
+            except ValueError:
+                return False
+        self._compact()
+        return True
 
     def clear(self) -> None:
         with self._lock:

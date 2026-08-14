@@ -24,6 +24,7 @@ from AppKit import (
     NSBezierPath,
     NSButton,
     NSColor,
+    NSColorSpace,
     NSFontAttributeName,
     NSForegroundColorAttributeName,
     NSGradient,
@@ -182,7 +183,7 @@ class BandView(NSView):
         grad = NSGradient.alloc().initWithColors_atLocations_colorSpace_(
             [tokens.rgb(c) for c in stops],
             tokens.BAND_LOCATIONS,
-            NSColor.blackColor().colorSpace())
+            NSColorSpace.sRGBColorSpace())
         #  CSS 152deg: 0deg points up and the angle runs clockwise, so the
         #  ramp travels right and down. NSGradient measures counter-clockwise
         #  from +x, hence 90 - 152.
@@ -190,7 +191,7 @@ class BandView(NSView):
 
         sheen = NSGradient.alloc().initWithColors_atLocations_colorSpace_(
             [tokens.rgb("#ffffff", 0.13), tokens.rgb("#ffffff", 0.0)],
-            (0.0, 1.0), NSColor.blackColor().colorSpace())
+            (0.0, 1.0), NSColorSpace.sRGBColorSpace())
         sheen.drawInRect_angle_(
             NSMakeRect(0, bounds.size.height * 0.54,
                        bounds.size.width, bounds.size.height * 0.46), -90.0)
@@ -388,3 +389,273 @@ class FooterView(NSView):
         tokens.BORDER.set()
         NSBezierPath.fillRect_(
             NSMakeRect(0, box.size.height - 1.0, box.size.width, 1.0))
+
+
+# ------------------------------------------------------------- form rows
+#  The Settings shape, from IMPLEMENTATION.md §5: a 132 pt label column, a
+#  14 pt gutter, then the controls. Notes wrap inside the box at 11.5 pt.
+
+LABEL_COL = 132.0
+VALUE_X = ROW_PAD_X + LABEL_COL + 14.0
+
+
+class FormRow(NSView):
+    """One labelled row inside a grouped box. Draws nothing itself — the box
+    paints the fill and the hairlines, so a row can be shown or hidden without
+    leaving a gap in the separators."""
+
+    def isFlipped(self):
+        return True
+
+
+def form_row(width, label_text, controls, note=None, note_indent=False,
+             trailing=None):
+    """Build a row and return (view, height).
+
+    `controls` are laid out left to right from the value column; each is
+    vertically centred on the label. `note` wraps under them — indented to the
+    value column when it explains a control, flush left when it explains the
+    row.
+    """
+    x = VALUE_X
+    top = ROW_PAD_Y
+    everything = list(controls) + ([trailing] if trailing else [])
+    tallest = max([c.frame().size.height for c in everything] + [16.0])
+    for c in controls:
+        size = c.frame().size
+        c.setFrameOrigin_(NSMakePoint(x, top + (tallest - size.height) / 2.0))
+        x += size.width + 8.0
+    if trailing is not None:
+        size = trailing.frame().size
+        trailing.setFrameOrigin_(NSMakePoint(
+            width - ROW_PAD_X - size.width, top + (tallest - size.height) / 2.0))
+
+    note_x = VALUE_X if note_indent else ROW_PAD_X
+    note_w = width - note_x - ROW_PAD_X
+    note_h = text_height(note, "note", note_w) if note else 0.0
+
+    height = ROW_PAD_Y * 2 + tallest + (note_h + 6.0 if note else 0.0)
+    row = FormRow.alloc().initWithFrame_(NSMakeRect(0, 0, width, height))
+
+    lab = label(label_text, "body", MUTED_ROLE, x=ROW_PAD_X,
+                y=top + (tallest - 16.0) / 2.0, width=LABEL_COL)
+    row.addSubview_(lab)
+    for c in everything:
+        row.addSubview_(c)
+    if note:
+        n = label(note, "note", tokens.MUTED, width=note_w, x=note_x,
+                  y=top + tallest + 6.0, wrap=True)
+        row.addSubview_(n)
+        row.note = n
+    row.label_field = lab
+    return row, height
+
+
+#  `label()` takes a colour, and the form label is always muted.
+MUTED_ROLE = tokens.MUTED
+
+
+def stack_box(width, rows):
+    """Put built rows into a BoxView, hairline-separated, and size it."""
+    box = BoxView.alloc().initWithFrame_(NSMakeRect(0, 0, width, 10))
+    y = 0.0
+    seps = []
+    for row in rows:
+        row.setFrameOrigin_(NSMakePoint(0, y))
+        if y:
+            seps.append(y)
+        y += row.frame().size.height
+        box.addSubview_(row)
+    box.separators = seps
+    box.setFrameSize_(NSMakeSize(width, y))
+    return box
+
+
+# ---------------------------------------------------------------- meter
+
+class MeterView(NSView):
+    """The input meter, the same object as the icon's bars and the overlay's
+    mark. A microphone that is selected but hearing nothing has to look
+    different from one that works."""
+
+    BARS = 16
+    BAR_W = 3.0
+    GAP = 2.0
+
+    def initWithFrame_(self, frame):
+        self = objc.super(MeterView, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self.level = 0.0
+        self.live = True
+        return self
+
+    @python_method
+    def set_level(self, level):
+        if abs(level - self.level) > 0.005:
+            self.level = level
+            self.setNeedsDisplay_(True)
+
+    def drawRect_(self, rect):
+        box = self.bounds()
+        for i in range(self.BARS):
+            frac = (i + 1) / float(self.BARS)
+            lit = self.live and self.level >= frac * 0.92
+            h = 3.0 + (box.size.height - 3.0) * (0.35 + 0.65 * frac)
+            (tokens.PEAK if lit else tokens.METER_IDLE).set()
+            NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
+                NSMakeRect(i * (self.BAR_W + self.GAP), 0,
+                           self.BAR_W, h if lit else 3.0), 1.5, 1.5).fill()
+
+    @classmethod
+    def width(cls):
+        return cls.BARS * cls.BAR_W + (cls.BARS - 1) * cls.GAP
+
+
+class StatusPill(NSView):
+    """A small status pill: dot plus one phrase. Used for "Keys arriving",
+    which is the only way to tell a wrong chord apart from one another app
+    swallowed.
+
+    Named StatusPill rather than PillView because a pyobjc class name IS its
+    Objective-C class name, and the overlay already registers a PillView. Two
+    modules claiming one runtime name is a hard crash at import, and nothing
+    warns until both are loaded in the same process.
+    """
+
+    def initWithFrame_(self, frame):
+        self = objc.super(StatusPill, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self.text = ""
+        self.on = False
+        return self
+
+    @python_method
+    def set_state(self, text, on):
+        if (text, on) != (self.text, self.on):
+            self.text, self.on = text, on
+            self.sizeToFit()
+            self.setNeedsDisplay_(True)
+
+    @python_method
+    def sizeToFit(self):
+        s = tokens.attributed(self.text, "note")
+        self.setFrameSize_(NSMakeSize(s.size().width + 34.0, 24.0))
+
+    def drawRect_(self, rect):
+        box = self.bounds()
+        path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
+            NSMakeRect(0.5, 0.5, box.size.width - 1, box.size.height - 1),
+            box.size.height / 2.0, box.size.height / 2.0)
+        (tokens.ACCENT.colorWithAlphaComponent_(0.12) if self.on
+         else tokens.CTL).set()
+        path.fill()
+        (tokens.ACCENT.colorWithAlphaComponent_(0.5) if self.on
+         else tokens.BORDER).set()
+        path.setLineWidth_(1.0)
+        path.stroke()
+
+        (tokens.ACCENT if self.on else tokens.MUTED).set()
+        NSBezierPath.bezierPathWithOvalInRect_(
+            NSMakeRect(11.0, box.size.height / 2.0 - 3.0, 6.0, 6.0)).fill()
+        tokens.attributed(self.text, "note",
+                          tokens.FG if self.on else tokens.MUTED).drawAtPoint_(
+            NSMakePoint(23.0, box.size.height / 2.0 - 8.0))
+
+
+# ---------------------------------------------------------------- sidebar
+
+SIDEBAR_W = tokens.SIDEBAR_W          # 198
+SOURCE_H = 30.0
+SOURCE_INSET = 10.0
+
+
+class SidebarView(BandView):
+    """The band, full height down the left edge. Same gradient as Setup's
+    header, so the two windows read as one app."""
+
+
+class SourceRow(NSView):
+    """One item in the source list: glyph, title, optional count badge."""
+
+    def initWithFrame_(self, frame):
+        self = objc.super(SourceRow, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self.title = ""
+        self.symbol = ""
+        self.badge = ""
+        self.selected = False
+        self.hover = False
+        return self
+
+    @python_method
+    def set_selected(self, on):
+        if on != self.selected:
+            self.selected = on
+            self.setNeedsDisplay_(True)
+
+    @python_method
+    def set_badge(self, text):
+        if text != self.badge:
+            self.badge = text
+            self.setNeedsDisplay_(True)
+
+    def drawRect_(self, rect):
+        box = self.bounds()
+        inner = NSMakeRect(SOURCE_INSET, 1.0,
+                           box.size.width - SOURCE_INSET * 2, box.size.height - 2)
+        if self.selected:
+            tokens.ACCENT.set()
+            NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
+                inner, tokens.RADIUS_ROW, tokens.RADIUS_ROW).fill()
+        elif self.hover:
+            tokens.rgb("#ffffff", 0.07).set()
+            NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
+                inner, tokens.RADIUS_ROW, tokens.RADIUS_ROW).fill()
+
+        fg = tokens.ACCENT_FG if self.selected else tokens.BAND_FG
+        cy = box.size.height / 2.0
+
+        icon = tinted_symbol(self.symbol, 13.0, fg)
+        if icon is not None:
+            size = icon.size()
+            icon.drawAtPoint_fromRect_operation_fraction_(
+                NSMakePoint(SOURCE_INSET + 10.0, cy - size.height / 2.0),
+                NSMakeRect(0, 0, size.width, size.height), 2, 1.0)
+
+        tokens.attributed(self.title, "rowLabel", fg).drawAtPoint_(
+            NSMakePoint(SOURCE_INSET + 34.0, cy - 9.0))
+
+        if self.badge:
+            s = tokens.attributed(
+                self.badge, "version",
+                tokens.ACCENT_FG if self.selected else tokens.BAND_DIM)
+            s.drawAtPoint_(NSMakePoint(
+                box.size.width - SOURCE_INSET - 10.0 - s.size().width, cy - 7.0))
+
+
+def tinted_symbol(name, size, color):
+    """An SF Symbol filled with `color`.
+
+    Template images take their colour from the control that draws them, which
+    is no help inside a hand-drawn view — so the fill is baked in with
+    sourceAtop, the standard AppKit idiom for exactly this.
+    """
+    from AppKit import NSImageSymbolConfiguration, NSRectFillUsingOperation
+
+    image = NSImage.imageWithSystemSymbolName_accessibilityDescription_(name, None)
+    if image is None:
+        return None
+    image = image.imageWithSymbolConfiguration_(
+        NSImageSymbolConfiguration.configurationWithPointSize_weight_scale_(
+            size, tokens.W_MEDIUM, 2))          # NSImageSymbolScaleMedium
+    out = image.copy()
+    out.setTemplate_(False)
+    out.lockFocus()
+    color.set()
+    NSRectFillUsingOperation(
+        NSMakeRect(0, 0, out.size().width, out.size().height), 5)  # sourceAtop
+    out.unlockFocus()
+    return out
