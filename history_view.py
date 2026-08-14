@@ -405,7 +405,7 @@ class HistoryList(NSView):
 
         mid = y + height / 2.0
         stamp = time.strftime("%H:%M", time.localtime(e.when)) if e.when else "—"
-        tokens.attributed(stamp, "note", tokens.MUTED).drawAtPoint_(
+        tokens.attributed(stamp, "numeric", tokens.MUTED).drawAtPoint_(
             NSMakePoint(cols["time"], mid - 8.0))
 
         text = e.text.replace("\n", " ") if e.text else "no speech detected"
@@ -429,7 +429,7 @@ class HistoryList(NSView):
                 NSMakeRect(track.origin.x, track.origin.y,
                            max(BAR_H, BAR_W * frac), BAR_H),
                 BAR_H / 2.0, BAR_H / 2.0).fill()
-            tokens.attributed(f"{e.secs:.1f}s", "note", tokens.MUTED
+            tokens.attributed(f"{e.secs:.1f}s", "numeric", tokens.MUTED
                               ).drawAtPoint_(
                 NSMakePoint(cols["spoken"] + BAR_W + 8.0, mid - 8.0))
 
@@ -442,7 +442,7 @@ class HistoryList(NSView):
         _truncate(s, landed, "note", tokens.MUTED, 104.0).drawAtPoint_(
             NSMakePoint(cols["app"], mid - 8.0))
 
-        tokens.attributed(_fmt_delay(e.ms) if e.text else "—", "note",
+        tokens.attributed(_fmt_delay(e.ms) if e.text else "—", "numeric",
                           tokens.MUTED).drawAtPoint_(
             NSMakePoint(cols["delay"], mid - 8.0))
 

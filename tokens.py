@@ -144,7 +144,14 @@ TYPE = {
     "groupLabel":  (9.5,  W_SEMIBOLD,  0.11),
     "tableHead":   (9.5,  W_SEMIBOLD,  0.11),
     "version":     (10.5, W_REGULAR,   0.02),
+    #  Anything that sits in a column: times, ms, seconds, counts, n/8.
+    "numeric":     (11.5, W_REGULAR,   0.01),
 }
+
+#  Roles drawn with monospaced digits. Proportional digits make a column of
+#  times or milliseconds ripple as the values change, which is the tell that
+#  a table was laid out with body type.
+TABULAR = {"version", "numeric"}
 
 
 def kern(role: str) -> float:
@@ -160,7 +167,8 @@ def attributed(text: str, role: str, color=None, display: bool = False):
 
     size, weight, _ = TYPE[role]
     attrs = {
-        NSFontAttributeName: font(size, weight, display),
+        NSFontAttributeName: (tabular(size, weight) if role in TABULAR
+                              else font(size, weight, display)),
         NSKernAttributeName: kern(role),
     }
     if color is not None:

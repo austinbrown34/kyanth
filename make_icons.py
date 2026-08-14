@@ -129,7 +129,8 @@ GLYPH_LOUD = [(4.0, 5.5, 2.6, 9.0), (8.7, 3.0, 2.6, 14.0), (13.4, 4.5, 2.6, 11.0
 GLYPH_STUB = [(4.0, 8.6, 2.6, 2.8), (8.7, 8.6, 2.6, 2.8), (13.4, 8.6, 2.6, 2.8)]
 
 
-def _glyph_bars(ctx, bars, scale, alpha=1.0, stroke=False):
+def _glyph_bars(ctx, bars, scale, alpha=1.0, stroke=False, light=False):
+    tone = 1.0 if light else 0.0
     for x, y_top, w, h in bars:
         rect = Quartz.CGRectMake(
             x * scale, (MENUBAR_PT - y_top - h) * scale, w * scale, h * scale)
@@ -137,11 +138,11 @@ def _glyph_bars(ctx, bars, scale, alpha=1.0, stroke=False):
             rect, (w / 2) * scale, (w / 2) * scale, None)
         Quartz.CGContextAddPath(ctx, path)
         if stroke:
-            Quartz.CGContextSetRGBStrokeColor(ctx, 0, 0, 0, alpha)
+            Quartz.CGContextSetRGBStrokeColor(ctx, tone, tone, tone, alpha)
             Quartz.CGContextSetLineWidth(ctx, 1.4 * scale)
             Quartz.CGContextStrokePath(ctx)
         else:
-            Quartz.CGContextSetRGBFillColor(ctx, 0, 0, 0, alpha)
+            Quartz.CGContextSetRGBFillColor(ctx, tone, tone, tone, alpha)
             Quartz.CGContextFillPath(ctx)
 
 
@@ -154,7 +155,7 @@ def _slash(ctx, scale, x1, y1, x2, y2):
     Quartz.CGContextStrokePath(ctx)
 
 
-def draw_glyph(state: str, scale: int, phase: int = 0):
+def draw_glyph(state: str, scale: int, phase: int = 0, light: bool = False):
     size = MENUBAR_PT * scale
     ctx = new_context(size)
 
@@ -162,13 +163,18 @@ def draw_glyph(state: str, scale: int, phase: int = 0):
         _glyph_bars(ctx, GLYPH_REST, scale)
 
     elif state == "recording":
-        _glyph_bars(ctx, GLYPH_LOUD, scale)
+        _glyph_bars(ctx, GLYPH_LOUD, scale, light=light)
         #  The one template opt-out — at 20 pt a colour change is legible
-        #  where a shape change is not.
+        #  where a shape change is not. Opting out means macOS will not invert
+        #  the bars for a dark menu bar either, so this state ships in two
+        #  tones and the app picks by appearance. Without the pair, recording
+        #  in dark mode is a lone red dot with the mark missing.
         Quartz.CGContextSetRGBFillColor(ctx, 0.898, 0.216, 0.173, 1.0)
-        r = 2.6 * scale
+        #  Clear of the right bar, which starts at x=16 and y=4.5. At 2.6/17.2
+        #  the dot overlapped it and the two read as one blob at 20 pt.
+        r = 1.9 * scale
         Quartz.CGContextFillEllipseInRect(
-            ctx, Quartz.CGRectMake(17.2 * scale - r, (MENUBAR_PT - 3.4) * scale - r,
+            ctx, Quartz.CGRectMake(18.0 * scale - r, (MENUBAR_PT - 2.6) * scale - r,
                                    r * 2, r * 2))
 
     elif state == "transcribing":
@@ -192,7 +198,9 @@ def draw_glyph(state: str, scale: int, phase: int = 0):
         _glyph_bars(ctx, hollow, scale, stroke=True)
 
     elif state == "error":
-        _glyph_bars(ctx, GLYPH_REST, scale, alpha=0.45)
+        #  Faint enough that the cross reads as the subject and the bars as
+        #  the thing it is struck through.
+        _glyph_bars(ctx, GLYPH_REST, scale, alpha=0.28)
         _slash(ctx, scale, 5.6, 5.6, 14.4, 14.4)
         _slash(ctx, scale, 14.4, 5.6, 5.6, 14.4)
 
@@ -236,13 +244,18 @@ def main() -> int:
             suffix = "@2x" if scale == 2 else ""
             write_png(draw_glyph(state, scale),
                       ASSETS / f"menubar-{state}{suffix}.png")
+    for scale in (1, 2):
+        suffix = "@2x" if scale == 2 else ""
+        write_png(draw_glyph("recording", scale, light=True),
+                  ASSETS / f"menubar-recording-dark{suffix}.png")
     for frame in range(TRANSCRIBING_FRAMES):
         for scale in (1, 2):
             suffix = "@2x" if scale == 2 else ""
             write_png(draw_glyph("transcribing", scale, frame),
                       ASSETS / f"menubar-transcribing-{frame}{suffix}.png")
     print(f"  glyphs: {len(GLYPH_STATES)} states + "
-          f"{TRANSCRIBING_FRAMES} transcribing frames, @1x and @2x")
+          f"{TRANSCRIBING_FRAMES} transcribing frames + a light-toned "
+          f"recording, @1x and @2x")
     return 0
 
 

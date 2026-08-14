@@ -126,8 +126,8 @@ previous clipboard is restored.
 
 ### Activation modes
 
-Set in **Settings & History…** — from the menu-bar icon, or by launching shout again from
-your Applications folder.
+Set in **Settings → Shortcut** — from the menu-bar icon, or by launching shout again from
+your Applications folder. There is no Save button: changes apply as you make them.
 
 | Mode | Behavior |
 |---|---|
@@ -147,9 +147,14 @@ like ⇧⌘V is intercepted system-wide and will shadow whatever else uses it.
 
 ### Listening indicator
 
-A pulsing ripple appears near the top of the screen while recording (red) and while
-transcribing (amber). Its centre scales with your live input level, so a microphone picking
-up nothing looks different from one that is working.
+A small pill appears near the top of the screen and says what is happening in words —
+Listening, Transcribing…, Pasted, Copied — press ⌘V, Nothing heard, Something went wrong.
+The three bars on its left are the input meter: the centre bar carries your live level and
+the outer two replay it a few frames later, so a syllable travels outward and a microphone
+picking up nothing looks obviously different from one that is working.
+
+The pill follows the pointer's screen, not the focused one, so on a multi-monitor setup it
+appears where you are looking.
 
 It is a non-activating panel: it floats above other windows and across Spaces without ever
 taking focus. That is not cosmetic — shout pastes into whatever app is frontmost, so an
@@ -175,7 +180,7 @@ change has a distinct tone. Pitch carries the meaning:
 | ignored | low blip | that press didn't count (too short, or no speech) |
 | error | two low blips | transcription failed |
 
-Toggle from the menu (**Sound cues**).
+Toggle in **Settings → Audio**, where you can also set the volume.
 
 ### Clipboard fallback
 
@@ -185,18 +190,31 @@ case, and it no longer loses your dictation.
 
 ### History
 
-Every transcription is kept in the **History** tab. Double-click a row, or select it and
-press **Copy**, to put it back on the clipboard. A ⧉ marks entries that went to the
-clipboard rather than into a document. Stored locally in `history.jsonl`, capped at 500
-entries. **Clear All** deletes it.
+Every transcription is kept in **Settings → History**, as a table: time, what you said, how
+long you spoke, where it landed and how long transcription took. Search filters as you
+type. The filter chips — Pasted, Clipboard, Nothing heard — map to the app's outcomes, and
+**Clipboard** is the list to open when text went missing.
+
+Click a row to open it in place: the full transcription, its facts, and **Copy** ·
+**Paste again** · **Delete**. Click again to collapse. Nothing is truncated. Stored locally
+in `history.jsonl`, capped at 500 entries; **Clear all…** deletes the lot.
 
 ### Menu-bar icon
 
+Six states, six shapes — the meaning survives without colour, which matters because the
+glyph is drawn over whatever your wallpaper is.
+
 | Icon | Meaning |
 |---|---|
-| mic | ready / transcribing |
-| mic + red dot | recording |
-| mic + slash | disabled, error, or waiting for permissions |
+| three bars | ready |
+| taller bars + red dot | recording |
+| three dots, one walking | transcribing |
+| bars with a slash | disabled |
+| hollow bars | waiting for permissions |
+| bars with a cross | something went wrong |
+
+Opening the icon shows the same state in words, with a live meter and your shortcut as key
+caps, so "is it hearing me" is answered before you click anything.
 
 ---
 
@@ -335,7 +353,11 @@ See [Building from source](#building-from-source) for the full release flow.
 | `shout.py` | daemon: event tap, recorder, worker, paste |
 | `menubar.py` | menu-bar app: server lifecycle, state, history |
 | `hotkey.py` | binding representation, matching, chord recorder |
-| `settings_ui.py` | Cocoa settings + history window |
+| `settings_ui.py` | Cocoa settings window: five panes behind a source list |
+| `history_view.py` | the History table: columns, search, filters, expand-in-place |
+| `chrome.py` | shared window furniture — band, lockup, ring, grouped boxes |
+| `tokens.py` | the design tokens: colour, type, geometry |
+| `menuheader.py` | the dropdown's status header |
 | `history.py` | persistent transcription history |
 | `sounds.py` | generated audio cues |
 | `vad.py` | silence trimming and the speech gate |
@@ -393,6 +415,8 @@ account, and no network call beyond the one-time model download.
 - **Local LLM cleanup** — `llama-server` for filler removal and rewriting
 - **Selection-rewrite hotkey** — copy selection, transform by voice, paste back
 - **Vocabulary editor in Settings** — currently requires editing `config.yaml`
+- **Presses that never arrived** — a count of presses another app swallowed, which is a
+  different fault from a wrong chord and is currently invisible
 - **Parakeet comparison** — a transducer model would not hallucinate on silence
 
 ---

@@ -52,7 +52,10 @@ ASSETS = paths.resources() / "assets"
 #  `working` were previously identical, which was the single most-cited gap in
 #  the v1.2.0 reference. Template images are recoloured by macOS for light and
 #  dark menu bars; `recording` opts out so its red dot survives, which is the
-#  one deliberate inconsistency the app already shipped.
+#  one deliberate inconsistency the app already shipped. Opting out also means
+#  macOS will not invert its bars, so recording ships in two tones and
+#  `_icon_for` picks by appearance — otherwise a dark menu bar shows a lone
+#  red dot with the mark missing.
 ICONS = {
     "idle":             ("menubar-idle@2x.png",             True),
     "recording":        ("menubar-recording@2x.png",        False),
@@ -182,7 +185,8 @@ class ShoutApp(rumps.App):
         self.recorder = None
         self.daemon = None
         self._warned_listen = False
-        self._icon_state = None       # skip redundant NSImage rebuilds
+        self._icon_state = None
+        self._icon_dark = None       # skip redundant NSImage rebuilds
         self._transcribe_timer = None
         self._transcribe_frame = 0
         self.mic_ok = False
@@ -469,6 +473,24 @@ class ShoutApp(rumps.App):
         """Safe to call from any thread — the worker calls this."""
         AppHelper.callAfter(self._apply_state, state)
 
+    def _menu_bar_is_dark(self):
+        from AppKit import NSApplication
+        return NSApplication.sharedApplication().effectiveAppearance() \
+            .bestMatchFromAppearancesWithNames_(
+                ["NSAppearanceNameAqua", "NSAppearanceNameDarkAqua"]) \
+            == "NSAppearanceNameDarkAqua"
+
+    def _set_icon(self, state: str):
+        name, template = ICONS.get(state, ICONS["idle"])
+        dark = self._menu_bar_is_dark()
+        if state == "recording" and dark:
+            name = "menubar-recording-dark@2x.png"
+        path = ASSETS / name
+        if path.exists():
+            self.template = template
+            self.icon = str(path)
+        self._icon_dark = dark
+
     def _apply_state(self, state: str):
         if state == "ignored":
             #  An outcome, not a status: the pill says "Nothing heard" and
@@ -494,12 +516,11 @@ class ShoutApp(rumps.App):
         #  .icon from inside its template setter, so a naive update allocated
         #  two NSImages per call — six per dictation — and the status item was
         #  reported vanishing after prolonged use.
-        if state != self._icon_state:
-            name, template = ICONS.get(state, ICONS["idle"])
-            path = ASSETS / name
-            if path.exists():
-                self.template = template
-                self.icon = str(path)
+        #  The appearance check rides along with the state change rather than
+        #  an observer: `recording` is the only glyph that cares, it lasts
+        #  seconds, and the next state change repaints it correctly anyway.
+        if state != self._icon_state or self._icon_dark != self._menu_bar_is_dark():
+            self._set_icon(state)
             self._icon_state = state
             self._set_transcribe_animation(state == "working")
             self._update_overlay(state)
