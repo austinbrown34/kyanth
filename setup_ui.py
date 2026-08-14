@@ -26,7 +26,6 @@ import objc
 from objc import python_method
 from AppKit import (
     NSAlert,
-    NSApp,
     NSBackingStoreBuffered,
     NSMakePoint,
     NSMakeRect,
@@ -109,6 +108,7 @@ class SetupController(NSObject):
         self.dictated = False        # set by the app when a transcription lands
         self.timer = None
         self.dupes_shown = None      # tri-state so the first layout always runs
+        self._centred = False
         self.last_probe = 0.0
         self.steps = self._build_steps()
         self._build_window()
@@ -592,9 +592,8 @@ class SetupController(NSObject):
 
     @python_method
     def start(self):
-        self.window.center()
-        self.window.makeKeyAndOrderFront_(None)
-        NSApp.activateIgnoringOtherApps_(True)
+        chrome.bring_to_front(self.window, center=not self._centred)
+        self._centred = True
         self.refresh()
         # Re-check continuously: the user is toggling switches in another app,
         # and nothing notifies us when they do.

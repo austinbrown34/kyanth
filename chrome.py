@@ -687,3 +687,25 @@ def tinted_symbol(name, size, color):
         NSMakeRect(0, 0, out.size().width, out.size().height), 5)  # sourceAtop
     out.unlockFocus()
     return out
+
+
+def bring_to_front(window, center=False):
+    """Actually put `window` in front of the user.
+
+    NSApp.activateIgnoringOtherApps_ no longer reliably raises an accessory
+    app on current macOS — it is deprecated and the window comes back buried
+    a hundred deep in the stacking order, which looks exactly like nothing
+    happened. NSRunningApplication still activates, and it has to happen
+    before the window is ordered front, not after.
+    """
+    from AppKit import (NSApp, NSApplicationActivateAllWindows,
+                        NSApplicationActivateIgnoringOtherApps,
+                        NSRunningApplication)
+
+    NSRunningApplication.currentApplication().activateWithOptions_(
+        NSApplicationActivateIgnoringOtherApps | NSApplicationActivateAllWindows)
+    NSApp.activateIgnoringOtherApps_(True)      # harmless, helps on older macOS
+    if center:
+        window.center()
+    window.makeKeyAndOrderFront_(None)
+    window.orderFrontRegardless()

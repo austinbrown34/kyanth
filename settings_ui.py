@@ -22,7 +22,6 @@ import objc
 from objc import python_method
 from AppKit import (
     NSAlert,
-    NSApp,
     NSBackingStoreBuffered,
     NSEvent,
     NSEventMaskFlagsChanged,
@@ -120,6 +119,7 @@ class SettingsController(NSObject):
         self.recorder = ChordRecorder()
         self.level_timer = None
         self.panes = {}
+        self._centred = False
         self._build()
         return self
 
@@ -770,12 +770,13 @@ class SettingsController(NSObject):
         # LSUIElement apps start non-activating, so without this the window
         # opens behind everything and never becomes key — which means the
         # local event monitor would never fire.
-        self.window.center()
-        self.window.makeKeyAndOrderFront_(None)
+        #  Centre once. Re-centring on every open yanks the window away from
+        #  wherever the user last put it.
+        chrome.bring_to_front(self.window, center=not self._centred)
+        self._centred = True
         #  Otherwise the first text field takes focus on open and wears a
         #  focus ring, which reads as "you were about to edit this".
         self.window.makeFirstResponder_(None)
-        NSApp.activateIgnoringOtherApps_(True)
         if self.level_timer is None:
             self.level_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
                 1.0, self, "tick:", None, True)

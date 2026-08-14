@@ -12,7 +12,7 @@ import plistlib
 from pathlib import Path
 
 ROOT = Path(SPECPATH)
-VERSION = "2.0.3"
+VERSION = "2.0.4"
 
 datas = [
     (str(ROOT / "assets" / "shout.icns"), "assets"),
