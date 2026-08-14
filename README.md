@@ -9,13 +9,16 @@ mode, and no custom vocabulary. Kyanth transcribes locally in ~150–300 ms, wor
 and never sends your audio anywhere. See [PROPOSAL.md](PROPOSAL.md) for the full
 competitive analysis and architecture.
 
+**[kyanth.com](https://kyanth.com)** · [Download the latest release](https://github.com/austinbrown34/kyanth/releases/latest)
+
 ---
 
 ## Install
 
 ### From the release DMG (recommended)
 
-1. Download the latest `kyanth-<version>.dmg` from [Releases](https://github.com/austinbrown34/kyanth/releases/latest)
+1. Download from **[kyanth.com](https://kyanth.com)**, or grab the latest
+   `kyanth-<version>.dmg` straight from [Releases](https://github.com/austinbrown34/kyanth/releases/latest)
 2. Open it and drag **Kyanth** to Applications
 3. Launch it from Applications
 
@@ -369,6 +372,7 @@ See [Building from source](#building-from-source) for the full release flow.
 | `kyanth.py` | daemon: event tap, recorder, worker, paste |
 | `menubar.py` | menu-bar app: server lifecycle, state, history |
 | `hotkey.py` | binding representation, matching, chord recorder |
+| `website/` | the kyanth.com landing page — static HTML, no build step |
 | `settings_ui.py` | Cocoa settings window: five panes behind a source list |
 | `history_view.py` | the History table: columns, search, filters, expand-in-place |
 | `chrome.py` | shared window furniture — band, lockup, ring, grouped boxes |

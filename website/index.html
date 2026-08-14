@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kyanth — local push-to-talk dictation for macOS</title>
+<meta name="description" content="Hold a key, speak, release. Kyanth transcribes on your Mac in about 200ms and pastes into whatever app you are using. No account, no subscription, no audio leaving your machine.">
+<link rel="icon" href="assets/icon-128.png" type="image/png">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Kyanth — local push-to-talk dictation for macOS">
+<meta property="og:description" content="Hold a key, speak, release. Transcribed on your Mac in ~200ms. Your audio never leaves the machine.">
+<meta property="og:image" content="assets/icon-512.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<style>
+/* Palette lifted from the app's own design tokens, so the site and the
+   product are demonstrably the same object. */
+:root{
+  --band:linear-gradient(152deg,#414a5e 0%,#262c3a 54%,#171b24 100%);
+  --ink:#14171f; --fg:#1b1b1f; --muted:#6b6b75; --line:rgba(0,0,0,.10);
+  --surface:#fff; --alt:#f6f7f9;
+  --peak:#0a6cf5; --peak-soft:#7db6ff; --silver:#dfe4ee;
+  --band-fg:#eef1f7; --band-muted:rgba(238,241,247,.62);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,system-ui,sans-serif;
+  --display:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+  --wrap:1080px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:var(--font);color:var(--fg);background:var(--surface);
+     -webkit-font-smoothing:antialiased;line-height:1.6;font-size:17px}
+img{max-width:100%;height:auto;display:block}
+a{color:var(--peak);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
+
+/* ---------------------------------------------------------------- hero */
+.hero{background:var(--band);color:var(--band-fg);position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,0) 46%)}
+.hero>*{position:relative;z-index:1}
+.nav{display:flex;align-items:center;gap:12px;padding:22px 0}
+.nav .mark{display:flex;align-items:flex-end;gap:4px;height:22px}
+.nav .mark i{display:block;width:5px;border-radius:3px;background:linear-gradient(180deg,#fff,#cfd6e4)}
+.nav .mark i:nth-child(1){height:12px}
+.nav .mark i:nth-child(2){height:22px;background:linear-gradient(180deg,var(--peak-soft),var(--peak))}
+.nav .mark i:nth-child(3){height:16px}
+.nav .name{font-family:var(--display);font-weight:600;font-size:17px;letter-spacing:-.02em}
+.nav .spacer{flex:1}
+.nav a{color:var(--band-muted);font-size:14.5px}
+.nav a:hover{color:var(--band-fg);text-decoration:none}
+
+.hero-in{padding:48px 0 76px;display:grid;grid-template-columns:1.15fr .85fr;
+         gap:52px;align-items:center}
+h1{font-family:var(--display);font-size:clamp(38px,5.4vw,60px);line-height:1.06;
+   letter-spacing:-.032em;font-weight:600;margin:0 0 20px}
+.lede{font-size:19px;color:var(--band-muted);margin:0 0 32px;max-width:33em}
+.lede b{color:var(--band-fg);font-weight:550}
+
+.cta{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:9px;padding:14px 24px;border-radius:9px;
+     font-weight:550;font-size:16px;border:1px solid transparent;transition:.15s}
+.btn:hover{text-decoration:none;transform:translateY(-1px)}
+.btn-primary{background:var(--peak);color:#fff;box-shadow:0 6px 22px rgba(10,108,245,.34)}
+.btn-primary:hover{background:#2a7ff7}
+.btn-ghost{border-color:rgba(255,255,255,.26);color:var(--band-fg)}
+.btn-ghost:hover{background:rgba(255,255,255,.09)}
+.meta{margin-top:18px;font-size:13.5px;color:rgba(238,241,247,.5)}
+.meta span{white-space:nowrap}
+.hero-art{display:flex;justify-content:center}
+.hero-art img{width:min(300px,74%);filter:drop-shadow(0 26px 54px rgba(0,0,0,.5))}
+
+/* ------------------------------------------------------------- sections */
+section{padding:68px 0}
+.alt{background:var(--alt);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;
+         color:var(--peak);margin:0 0 14px}
+h2{font-family:var(--display);font-size:clamp(28px,3.4vw,38px);line-height:1.15;
+   letter-spacing:-.024em;font-weight:600;margin:0 0 16px}
+.sub{font-size:18px;color:var(--muted);max-width:34em;margin:0 0 30px}
+
+.pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:30px}
+.pillar h3{font-family:var(--display);font-size:19px;font-weight:600;margin:0 0 8px;
+           letter-spacing:-.015em}
+.pillar p{margin:0;color:var(--muted);font-size:15.5px}
+.pillar .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+            background:rgba(10,108,245,.10);margin-bottom:14px;font-size:17px}
+
+/* shots */
+.shot{display:grid;grid-template-columns:.9fr 1.1fr;gap:46px;align-items:center;
+      padding:38px 0;border-top:1px solid var(--line)}
+.shot:first-of-type{border-top:0}
+.shot.flip .copy{order:2}
+.shot h3{font-family:var(--display);font-size:24px;font-weight:600;letter-spacing:-.02em;margin:0 0 12px}
+.shot p{color:var(--muted);margin:0 0 10px;font-size:16px}
+.shot img{border-radius:11px;box-shadow:0 18px 50px rgba(16,20,32,.20)}
+.shot .plain{box-shadow:none;border-radius:0;margin:0 auto;width:min(330px,88%)}
+
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--line);
+      border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.cell{background:var(--surface);padding:26px 24px}
+.cell h4{font-size:16px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em}
+.cell p{margin:0;color:var(--muted);font-size:14.5px}
+
+.quote{border-left:3px solid var(--peak);padding:4px 0 4px 22px;margin:34px 0 0;
+       font-size:17px;color:var(--fg);max-width:40em}
+kbd{font-family:var(--mono);font-size:.86em;background:#fff;border:1px solid rgba(0,0,0,.16);
+    border-bottom-width:2px;border-radius:5px;padding:2px 7px;color:var(--fg)}
+
+/* final cta */
+.close{background:var(--band);color:var(--band-fg);text-align:center;position:relative;overflow:hidden}
+.close::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,0) 50%)}
+.close>*{position:relative;z-index:1}
+.close h2{margin-bottom:14px}
+.close .sub{color:var(--band-muted);margin:0 auto 32px}
+.close .cta{justify-content:center}
+
+footer{background:var(--ink);color:rgba(238,241,247,.5);font-size:14px;padding:34px 0}
+footer .wrap{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+footer a{color:rgba(238,241,247,.72)}
+footer .spacer{flex:1}
+
+@media (max-width:860px){
+  .hero-in{grid-template-columns:1fr;gap:36px;padding:36px 0 64px}
+  .hero-art{order:-1}
+  .hero-art img{width:170px}
+  .pillars,.grid{grid-template-columns:1fr}
+  .shot{grid-template-columns:1fr;gap:26px;padding:40px 0}
+  .shot.flip .copy{order:0}
+  section{padding:52px 0}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="nav">
+      <span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="name">Kyanth</span>
+      <span class="spacer"></span>
+      <a href="#how">How it works</a>
+      <a href="#privacy">Privacy</a>
+      <a href="https://github.com/austinbrown34/kyanth">GitHub</a>
+    </nav>
+
+    <div class="hero-in">
+      <div>
+        <h1>Hold a key. Speak.<br>The words are already typed.</h1>
+        <p class="lede">Kyanth is push-to-talk dictation for macOS that runs
+          <b>entirely on your Mac</b>. Release the key and the text lands in
+          whatever app you are using — in about 200 milliseconds. No account,
+          no subscription, and your audio never leaves the machine.</p>
+
+        <div class="cta">
+          <a class="btn btn-primary" id="dl"
+             href="https://github.com/austinbrown34/kyanth/releases/latest">
+            <svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 1v8.6M8 10.5 4.6 7.1M8 10.5l3.4-3.4" stroke="currentColor"
+                    stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 11.6V13a1.4 1.4 0 0 0 1.4 1.4h9.2A1.4 1.4 0 0 0 14 13v-1.4"
+                    stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+            </svg>
+            <span id="dlLabel">Download for macOS</span>
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/austinbrown34/kyanth">View source</a>
+        </div>
+
+        <p class="meta">
+          <span>macOS 13+</span> · <span>Apple Silicon</span> ·
+          <span>Free &amp; open source</span> · <span id="ver">Signed and notarized</span>
+        </p>
+      </div>
+
+      <div class="hero-art">
+        <img src="assets/icon-512.png" alt="The Kyanth app icon: three vertical bars, the middle one taller and electric blue, on a dark navy tile.">
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="how">
+  <div class="wrap">
+    <p class="eyebrow">How it works</p>
+    <h2>Three keys, and nothing to learn</h2>
+    <p class="sub">Kyanth lives in the menu bar. There is no window to switch to,
+      no button to find, and nothing to copy and paste.</p>
+
+    <div class="pillars">
+      <div class="pillar">
+        <div class="ic">⌥</div>
+        <h3>Hold your shortcut</h3>
+        <p>Any key or chord you like. Modifier-only combinations such as
+          <kbd>Right ⌥</kbd> work best — they cannot be typed, so binding one
+          steals nothing from other apps.</p>
+      </div>
+      <div class="pillar">
+        <div class="ic">◍</div>
+        <h3>Say what you mean</h3>
+        <p>A small pill appears and shows your live input level, so a microphone
+          that is hearing nothing looks obviously different from one that works.</p>
+      </div>
+      <div class="pillar">
+        <div class="ic">↵</div>
+        <h3>Release</h3>
+        <p>The text is pasted into the focused field and your previous clipboard
+          is put back. Typically 200 ms from key-up to text on screen.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <p class="eyebrow">On screen</p>
+    <h2>It always tells you what happened</h2>
+    <p class="sub">Silence is the worst failure mode a dictation tool can have.
+      Every outcome says so in words — including the ones that went wrong.</p>
+
+    <div class="shot">
+      <div class="copy">
+        <h3>Six states, six sentences</h3>
+        <p>Listening, transcribing, pasted, copied to the clipboard, nothing
+          heard, something went wrong. You never have to guess which one you got.</p>
+        <p>The three bars are the input meter. The centre bar carries your live
+          level and the outer two replay it a few frames later, so a syllable
+          travels outward across the mark.</p>
+        <p>It floats above other windows without ever taking focus — a dictation
+          overlay that stole focus would redirect your speech into itself.</p>
+      </div>
+      <img class="plain" src="assets/overlay-states.png"
+           alt="Four states of the Kyanth overlay pill: Listening, Transcribing, Pasted into Mail, and Copied — press Command V.">
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The app</p>
+    <h2>Built like a Mac app, not a wrapper</h2>
+    <p class="sub">Hand-drawn AppKit, two appearances, and a setup process that
+      refuses to call itself finished until it has proof.</p>
+
+    <div class="shot">
+      <div class="copy">
+        <h3>Setup that verifies itself</h3>
+        <p>Eight checks in three groups, re-evaluated every second — flip a switch
+          in System Settings and the row turns without a relaunch.</p>
+        <p>The last check is the one that matters: <b>Finish stays disabled until a
+          real dictation has produced real text.</b> Green permissions prove
+          configuration, not function.</p>
+      </div>
+      <img src="assets/ui-setup.png"
+           alt="The Kyanth setup window showing eight checks grouped under Permissions, Hardware and model, and Verification, with a progress ring.">
+    </div>
+
+    <div class="shot flip">
+      <div class="copy">
+        <h3>Proof that it is hearing you</h3>
+        <p>Pick any shortcut. Modifiers are side-aware, so <kbd>Right ⌥</kbd> is not
+          <kbd>Left ⌥</kbd>, and chords commit when you let go rather than on the
+          first key down.</p>
+        <p>A live indicator lights the moment Kyanth receives exactly your chord.
+          It is the only way to tell a wrong shortcut apart from one another app
+          swallowed first.</p>
+      </div>
+      <img src="assets/ui-shortcut.png"
+           alt="Kyanth Settings, Shortcut pane: activation mode, the bound key chord, and live indicators for keys and audio arriving.">
+    </div>
+
+    <div class="shot">
+      <div class="copy">
+        <h3>Everything you have said, searchable</h3>
+        <p>Time, transcription, how long you spoke, where it landed and how long
+          the model took — as columns, not one crushed string.</p>
+        <p>Search filters as you type. Click any row to expand it in place, with
+          copy, paste-again and delete. Nothing truncates.</p>
+        <p>Stored as a plain JSONL file on your Mac that you can read or delete
+          at any time.</p>
+      </div>
+      <img src="assets/ui-history.png"
+           alt="Kyanth Settings, History pane: a sortable table of past dictations with time, text, duration, destination app and latency.">
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="privacy">
+  <div class="wrap">
+    <p class="eyebrow">Privacy</p>
+    <h2>Nothing leaves your Mac. Not by policy — by construction.</h2>
+    <p class="sub">There is no server to trust, because there is no server.
+      The speech model ships inside the app and runs on your own hardware.</p>
+
+    <div class="grid">
+      <div class="cell"><h4>No account</h4><p>Nothing to sign up for. Download it and it works.</p></div>
+      <div class="cell"><h4>No network calls</h4><p>The only connection is to <code>127.0.0.1</code> — the transcription engine inside the app.</p></div>
+      <div class="cell"><h4>No telemetry</h4><p>No analytics, no crash reporting, no phone-home.</p></div>
+      <div class="cell"><h4>The microphone is released</h4><p>The input device opens on your first press and closes after 30 seconds idle, so the macOS recording indicator is not on while you work.</p></div>
+      <div class="cell"><h4>Your history is a file</h4><p>Plain JSONL under Application Support, capped at 500 entries. Delete it whenever you like.</p></div>
+      <div class="cell"><h4>Signed and notarized</h4><p>A Developer ID build that opens with no Gatekeeper warning and keeps its permission grants across updates.</p></div>
+    </div>
+
+    <p class="quote">Cloud dictation is a subscription, an account, and a copy of
+      everything you have ever said sitting on somebody else's disk. Kyanth is a
+      170&nbsp;MB app that does the same job with none of that.</p>
+  </div>
+</section>
+
+<section class="close">
+  <div class="wrap">
+    <h2>Try it on your own machine</h2>
+    <p class="sub">Free, open source, and self-contained — Python, the speech model
+      and the transcription engine all ship inside the app. No Homebrew, nothing to build.</p>
+    <div class="cta">
+      <a class="btn btn-primary" id="dl2"
+         href="https://github.com/austinbrown34/kyanth/releases/latest">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/austinbrown34/kyanth">Read the source</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Kyanth — local push-to-talk dictation for macOS</span>
+    <span class="spacer"></span>
+    <a href="https://github.com/austinbrown34/kyanth">GitHub</a>
+    <a href="https://github.com/austinbrown34/kyanth/releases">Releases</a>
+    <a href="https://github.com/austinbrown34/kyanth/issues">Report an issue</a>
+  </div>
+</footer>
+
+<script>
+/* Point the download buttons straight at the current DMG and show its version.
+   The buttons already link to the releases page, so if this fails — offline,
+   rate-limited, no JS — the page still works. */
+(function () {
+  fetch('https://api.github.com/repos/austinbrown34/kyanth/releases/latest',
+        {headers: {Accept: 'application/vnd.github+json'}})
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function (rel) {
+      var dmg = (rel.assets || []).filter(function (a) {
+        return /\.dmg$/i.test(a.name);
+      })[0];
+      if (!dmg) return;
+      ['dl', 'dl2'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.href = dmg.browser_download_url;
+      });
+      var label = document.getElementById('dlLabel');
+      if (label && rel.tag_name) label.textContent = 'Download ' + rel.tag_name + ' for macOS';
+      var ver = document.getElementById('ver');
+      if (ver) {
+        var mb = Math.round((dmg.size || 0) / 1048576);
+        ver.textContent = 'Signed and notarized' + (mb ? ' · ' + mb + ' MB' : '');
+      }
+    })
+    .catch(function () { /* links already resolve to the releases page */ });
+})();
+</script>
+</body>
+</html>
