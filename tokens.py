@@ -1,6 +1,6 @@
 """Design tokens — Level.
 
-Ported verbatim from shout-level-handoff/tokens/tokens.css. That file is the
+Ported verbatim from level-handoff/tokens/tokens.css. That file is the
 source of truth; if the two disagree, it wins.
 
 Two appearances. Everything except the brand layer flips with the system
@@ -41,30 +41,30 @@ def dynamic(name: str, light, dark):
 
 # ------------------------------------------------------------ surfaces etc
 
-SURFACE = dynamic("shout.surface", rgb("#ffffff"), rgb("#232326"))
-FOOTER = dynamic("shout.footer", rgb("#f7f7f9"), rgb("#1e1e21"))
-TITLEBAR = dynamic("shout.titlebar", rgb("#f0f0f2"), rgb("#2c2c30"))
-BORDER = dynamic("shout.border", rgb("#000000", .11), rgb("#ffffff", .12))
-HOVER = dynamic("shout.hover", rgb("#000000", .05), rgb("#ffffff", .07))
-CTL = dynamic("shout.ctl", rgb("#ffffff"), rgb("#ffffff", .09))
-WIN_HAIRLINE = dynamic("shout.winHairline", rgb("#000000", .14), rgb("#ffffff", .10))
+SURFACE = dynamic("kyanth.surface", rgb("#ffffff"), rgb("#232326"))
+FOOTER = dynamic("kyanth.footer", rgb("#f7f7f9"), rgb("#1e1e21"))
+TITLEBAR = dynamic("kyanth.titlebar", rgb("#f0f0f2"), rgb("#2c2c30"))
+BORDER = dynamic("kyanth.border", rgb("#000000", .11), rgb("#ffffff", .12))
+HOVER = dynamic("kyanth.hover", rgb("#000000", .05), rgb("#ffffff", .07))
+CTL = dynamic("kyanth.ctl", rgb("#ffffff"), rgb("#ffffff", .09))
+WIN_HAIRLINE = dynamic("kyanth.winHairline", rgb("#000000", .14), rgb("#ffffff", .10))
 
-FG = dynamic("shout.fg", rgb("#1b1b1f"), rgb("#f0f0f2"))
-MUTED = dynamic("shout.muted", rgb("#77777f"), rgb("#96969e"))
+FG = dynamic("kyanth.fg", rgb("#1b1b1f"), rgb("#f0f0f2"))
+MUTED = dynamic("kyanth.muted", rgb("#77777f"), rgb("#96969e"))
 
-ACCENT = dynamic("shout.accent", rgb("#0a6cf5"), rgb("#3d8bff"))
+ACCENT = dynamic("kyanth.accent", rgb("#0a6cf5"), rgb("#3d8bff"))
 ACCENT_FG = rgb("#ffffff")
-RECORD = dynamic("shout.record", rgb("#e5372c"), rgb("#ff5f52"))
-WARN = dynamic("shout.warn", rgb("#d4820a"), rgb("#f0a52a"))
-OK = dynamic("shout.ok", rgb("#1f9c4a"), rgb("#3ec46d"))
-METER_IDLE = dynamic("shout.meterIdle", rgb("#000000", .14), rgb("#ffffff", .16))
+RECORD = dynamic("kyanth.record", rgb("#e5372c"), rgb("#ff5f52"))
+WARN = dynamic("kyanth.warn", rgb("#d4820a"), rgb("#f0a52a"))
+OK = dynamic("kyanth.ok", rgb("#1f9c4a"), rgb("#3ec46d"))
+METER_IDLE = dynamic("kyanth.meterIdle", rgb("#000000", .14), rgb("#ffffff", .16))
 
 #  Satisfied setup steps use this, NOT green — see DESIGN.md §4.2. Seven green
 #  ticks shout, and the Setup window's own argument is that green permissions
 #  are not proof.
-MARK_DONE = dynamic("shout.markDone", rgb("#2c3444"), rgb("#46516a"))
+MARK_DONE = dynamic("kyanth.markDone", rgb("#2c3444"), rgb("#46516a"))
 
-PEAK = dynamic("shout.peak", rgb("#0a6cf5"), rgb("#3d8bff"))
+PEAK = dynamic("kyanth.peak", rgb("#0a6cf5"), rgb("#3d8bff"))
 
 # ------------------------------------------------------------- brand layer
 #  Identical in both appearances. The band's two variants below are a

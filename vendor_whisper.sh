@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Collect whisper-server and its entire non-system dylib closure into vendor/,
-# so a packaged shout.app needs no Homebrew.
+# so a packaged Kyanth.app needs no Homebrew.
 #
 # Two things that will waste your afternoon if you don't know them:
 #

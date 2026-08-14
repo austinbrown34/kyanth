@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Install shout as a menu-bar app that starts at login.
+# Install Kyanth as a menu-bar app that starts at login.
 #
 # Layout:
-#   ~/Library/Application Support/shout/   runtime: code, venv, model, config
-#   ~/Applications/shout.app               the bundle
+#   ~/Library/Application Support/Kyanth/   runtime: code, venv, model, config
+#   ~/Applications/Kyanth.app               the bundle
 #   ~/Library/LaunchAgents/…plist          login item
 #
 # The runtime is staged out of this directory rather than run in place because
@@ -13,9 +13,9 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 SRC="$(pwd)"
-PREFIX="$HOME/Library/Application Support/shout"
-APP="$HOME/Applications/shout.app"
-LABEL="local.shout.dictation"
+PREFIX="$HOME/Library/Application Support/Kyanth"
+APP="$HOME/Applications/Kyanth.app"
+LABEL="local.kyanth.dictation"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 
 # ---------------------------------------------------------------- checks
@@ -49,10 +49,10 @@ fi
 
 echo "==> staging runtime to $PREFIX"
 mkdir -p "$PREFIX/models" "$PREFIX/logs"
-cp menubar.py shout.py config.py postprocess.py vad.py hotkey.py settings_ui.py \
+cp menubar.py kyanth.py config.py postprocess.py vad.py hotkey.py settings_ui.py \
    sounds.py history.py make_icons.py pyproject.toml "$PREFIX/"
 mkdir -p "$PREFIX/assets"
-cp assets/shout.icns assets/menubar-*.png "$PREFIX/assets/"
+cp assets/kyanth.icns assets/menubar-*.png "$PREFIX/assets/"
 [ -f uv.lock ] && cp uv.lock "$PREFIX/"
 
 # Don't clobber a config the user has already tuned in place.
@@ -126,7 +126,7 @@ Installed.
 
 Start it now:   open -a "$APP"
 
-FIRST RUN: grant Accessibility to shout.app.
+FIRST RUN: grant Accessibility to Kyanth.app.
   System Settings > Privacy & Security > Accessibility  ->  add
   $APP
 

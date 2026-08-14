@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build shout.app.
+# Build Kyanth.app.
 #
 # Usage: ./build_app.sh <runtime-prefix> <output-app-path>
 #
@@ -27,24 +27,24 @@ cat > "$CONTENTS/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key>              <string>shout</string>
-  <key>CFBundleDisplayName</key>       <string>shout</string>
-  <key>CFBundleIdentifier</key>        <string>local.shout.dictation</string>
+  <key>CFBundleName</key>              <string>Kyanth</string>
+  <key>CFBundleDisplayName</key>       <string>Kyanth</string>
+  <key>CFBundleIdentifier</key>        <string>local.kyanth.dictation</string>
   <key>CFBundleVersion</key>           <string>0.4.0</string>
   <key>CFBundleShortVersionString</key><string>0.4.0</string>
   <key>CFBundlePackageType</key>       <string>APPL</string>
-  <key>CFBundleExecutable</key>        <string>shout</string>
-  <key>CFBundleIconFile</key>          <string>shout</string>
+  <key>CFBundleExecutable</key>        <string>Kyanth</string>
+  <key>CFBundleIconFile</key>          <string>Kyanth</string>
   <!-- menu-bar only: no Dock icon, no app-switcher entry -->
   <key>LSUIElement</key>               <true/>
   <key>LSMinimumSystemVersion</key>    <string>13.0</string>
   <key>NSMicrophoneUsageDescription</key>
-  <string>shout transcribes your speech locally to type it into the focused app.</string>
+  <string>Kyanth transcribes your speech locally to type it into the focused app.</string>
 </dict>
 </plist>
 PLIST
 
-cat > "$CONTENTS/MacOS/shout" <<LAUNCHER
+cat > "$CONTENTS/MacOS/Kyanth" <<LAUNCHER
 #!/bin/bash
 # exec so python replaces this shell and remains the bundle's main process.
 #
@@ -58,18 +58,18 @@ mkdir -p "$PREFIX/logs"
 exec "$PREFIX/.venv/bin/python" -u "$PREFIX/menubar.py" "\$@" \\
   >> "$PREFIX/logs/app.log" 2>&1
 LAUNCHER
-chmod +x "$CONTENTS/MacOS/shout"
+chmod +x "$CONTENTS/MacOS/Kyanth"
 
 # Finder, Login Items, and the Accessibility list all read this.
-if [ -f "$PREFIX/assets/shout.icns" ]; then
-  cp "$PREFIX/assets/shout.icns" "$CONTENTS/Resources/shout.icns"
+if [ -f "$PREFIX/assets/kyanth.icns" ]; then
+  cp "$PREFIX/assets/kyanth.icns" "$CONTENTS/Resources/kyanth.icns"
 else
-  echo "warning: no icon at $PREFIX/assets/shout.icns (run make_icons.py)"
+  echo "warning: no icon at $PREFIX/assets/kyanth.icns (run make_icons.py)"
 fi
 
 # Ad-hoc signature gives the bundle a stable identity so TCC grants survive
 # rebuilds instead of silently reverting to "not granted".
-codesign --force --sign - --identifier local.shout.dictation "$APP" 2>/dev/null \
+codesign --force --sign - --identifier local.kyanth.dictation "$APP" 2>/dev/null \
   || echo "warning: codesign failed; grants may not persist across rebuilds"
 
 echo "built $APP  (runtime: $PREFIX)"

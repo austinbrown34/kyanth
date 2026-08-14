@@ -12,7 +12,7 @@ independently. At rest it settles to the icon's own 34 : 62 : 46 proportions,
 so the overlay never becomes a different object; it is the app icon breathing.
 
 The hard requirement is unchanged and is functional, not cosmetic: **this must
-never become key window.** shout pastes into whatever app is frontmost, so an
+never become key window.** Kyanth pastes into whatever app is frontmost, so an
 overlay that took focus would redirect the user's dictation into itself.
 """
 

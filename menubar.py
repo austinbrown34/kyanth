@@ -1,4 +1,4 @@
-"""shout menubar app.
+"""Kyanth menubar app.
 
 Owns the whisper-server subprocess and the dictation daemon, and shows state
 in the menu bar. rumps runs an NSApplication, whose run loop the event tap
@@ -28,7 +28,7 @@ import history as history_mod
 import loginitem
 import menuheader
 import overlay as overlay_mod
-import shout
+import kyanth
 import sounds
 import version
 from hotkey import MODE_HOLD
@@ -44,7 +44,7 @@ HISTORY = 8
 
 #  A second launch of an already-running app signals the live instance over
 #  this notification rather than starting a rival process.
-SHOW_SETTINGS_NOTE = "local.shout.dictation.showSettings"
+SHOW_SETTINGS_NOTE = "local.kyanth.dictation.showSettings"
 
 ASSETS = paths.resources() / "assets"
 
@@ -200,17 +200,17 @@ class ServerManager:
         return self.start()
 
 
-class ShoutApp(rumps.App):
+class KyanthApp(rumps.App):
     def __init__(self):
         icon = ASSETS / ICONS["idle"][0]
-        super().__init__("shout", icon=str(icon) if icon.exists() else None,
+        super().__init__("Kyanth", icon=str(icon) if icon.exists() else None,
                          template=True, title=None, quit_button=None)
 
         self.cfg = config_mod.load()
         self.store = history_mod.History(paths.history_file())
         self.history: deque[str] = deque(maxlen=HISTORY)
         self.jobs: queue.Queue = queue.Queue()
-        self.server = ServerManager(self.cfg.model, shout.SERVER_PORT)
+        self.server = ServerManager(self.cfg.model, kyanth.SERVER_PORT)
         self.recorder = None
         self.daemon = None
         self._warned_listen = False
@@ -252,7 +252,7 @@ class ShoutApp(rumps.App):
 
         settings_item = rumps.MenuItem("Settings & History…",
                                        callback=self.on_settings, key=",")
-        quit_item = rumps.MenuItem("Quit shout", callback=self.on_quit, key="q")
+        quit_item = rumps.MenuItem("Quit Kyanth", callback=self.on_quit, key="q")
 
         self.menu = [
             self.status_item,
@@ -298,7 +298,7 @@ class ShoutApp(rumps.App):
                 AVMediaTypeAudio, lambda granted: None)
         from ApplicationServices import AXIsProcessTrusted
         print(f"[start] accessibility={AXIsProcessTrusted()} "
-              f"input_monitoring={shout.input_monitoring_status()} "
+              f"input_monitoring={kyanth.input_monitoring_status()} "
               f"(0=granted 1=denied 2=undetermined)")
 
         self.cues = sounds.Cues(paths.cues(), enabled=self.cfg.sound,
@@ -329,8 +329,8 @@ class ShoutApp(rumps.App):
             return True
 
         try:
-            self.recorder = shout.Recorder(
-                device=shout.resolve_input_device(self.cfg.input_device),
+            self.recorder = kyanth.Recorder(
+                device=kyanth.resolve_input_device(self.cfg.input_device),
                 lead_skip_ms=self.cues.lead_ms)
             #  The device is opened lazily now, so constructing the Recorder no
             #  longer proves the microphone works. Probe once — open and
@@ -348,19 +348,19 @@ class ShoutApp(rumps.App):
             AppHelper.callAfter(self.show_setup)
             return True
         threading.Thread(
-            target=shout.worker,
+            target=kyanth.worker,
             args=(self.jobs, self.cfg, True, self.set_state, self.on_result,
                   self.cues),
             daemon=True,
         ).start()
 
-        self.daemon = shout.Daemon(
+        self.daemon = kyanth.Daemon(
             self.recorder, self.jobs, verbose=True, on_state=self.set_state,
             binding=self.cfg.hotkey, mode=self.cfg.mode, cues=self.cues,
             min_press_ms=self.cfg.min_press_ms,
         )
         self.daemon.on_hint = lambda title, msg: AppHelper.callAfter(
-            rumps.notification, "shout", title, msg)
+            rumps.notification, "Kyanth", title, msg)
         print(f"[start] hotkey={self.cfg.hotkey.label()} mode={self.cfg.mode}")
         if not self.install_tap():
             # Ask macOS to show its own "open System Settings" prompt, then
@@ -448,7 +448,7 @@ class ShoutApp(rumps.App):
         AppHelper.callAfter(self.on_settings)
 
     def _observe_show_settings(self):
-        """Opening shout again from the Applications folder should surface
+        """Opening Kyanth again from the Applications folder should surface
         Settings rather than silently doing nothing."""
         global _reopen_target
         _reopen_target = self.on_reopen
@@ -470,18 +470,18 @@ class ShoutApp(rumps.App):
             return
         if self.recorder is None:
             try:
-                self.recorder = shout.Recorder(
-                    device=shout.resolve_input_device(self.cfg.input_device),
+                self.recorder = kyanth.Recorder(
+                    device=kyanth.resolve_input_device(self.cfg.input_device),
                     lead_skip_ms=self.cues.lead_ms)
             except Exception:
                 return
             threading.Thread(
-                target=shout.worker,
+                target=kyanth.worker,
                 args=(self.jobs, self.cfg, True, self.set_state, self.on_result,
                       self.cues),
                 daemon=True,
             ).start()
-            self.daemon = shout.Daemon(
+            self.daemon = kyanth.Daemon(
                 self.recorder, self.jobs, verbose=True, on_state=self.set_state,
                 binding=self.cfg.hotkey, mode=self.cfg.mode, cues=self.cues,
                 min_press_ms=self.cfg.min_press_ms,
@@ -490,7 +490,7 @@ class ShoutApp(rumps.App):
             timer.stop()
             self.set_state("idle")
             print("[start] permissions granted — ready")
-            rumps.notification("shout", "Ready", "Hold your shortcut to dictate.")
+            rumps.notification("Kyanth", "Ready", "Hold your shortcut to dictate.")
         else:
             self.request_permissions()
 
@@ -519,10 +519,10 @@ class ShoutApp(rumps.App):
 
         if not AXIsProcessTrusted():
             return False
-        if shout.input_monitoring_status() != 0 and not self._warned_listen:
+        if kyanth.input_monitoring_status() != 0 and not self._warned_listen:
             self._warned_listen = True
             print("[perm] Input Monitoring not granted — installing the tap "
-                  "anyway; if the hotkey does nothing, add shout under "
+                  "anyway; if the hotkey does nothing, add Kyanth under "
                   "System Settings > Privacy & Security > Input Monitoring")
         return bool(self.daemon and self.daemon.install())
 
@@ -536,8 +536,8 @@ class ShoutApp(rumps.App):
         if not AXIsProcessTrusted():
             AXIsProcessTrustedWithOptions({kAXTrustedCheckOptionPrompt: True})
             missing.append("Accessibility")
-        if shout.input_monitoring_status() != 0:
-            shout.request_input_monitoring()
+        if kyanth.input_monitoring_status() != 0:
+            kyanth.request_input_monitoring()
             missing.append("Input Monitoring")
         print(f"[perm] requesting: {', '.join(missing) or 'nothing'}")
 
@@ -545,7 +545,7 @@ class ShoutApp(rumps.App):
         if self.install_tap():
             timer.stop()
             self.set_state("idle")
-            rumps.notification("shout", "Ready",
+            rumps.notification("Kyanth", "Ready",
                                f"Hold {self.cfg.hotkey.label()} to dictate.")
 
     def preflight(self) -> list[str]:
@@ -737,9 +737,9 @@ class ShoutApp(rumps.App):
         a fixed-size ripple, but the pill sizes itself to its message, so
         setting its state moves a window — and AppKit traps on a window moved
         off the main thread. It crashed the app after a dictation, which looks
-        exactly like "shout stopped working".
+        exactly like "Kyanth stopped working".
         """
-        app_name = shout.frontmost_app()
+        app_name = kyanth.frontmost_app()
         self.store.add(history_mod.Entry(text, app_name,
                                          time.time(), ms, where, secs))
         mark = " ⧉" if where == "clipboard" else ""
@@ -762,7 +762,7 @@ class ShoutApp(rumps.App):
             print(f"[overlay] outcome failed: {exc}", flush=True)
         self._refresh_history()
         if where == "clipboard":
-            rumps.notification("shout", "Copied to clipboard",
+            rumps.notification("Kyanth", "Copied to clipboard",
                                "No text field was focused — press ⌘V to paste.")
 
     def _refresh_history(self):
@@ -809,15 +809,15 @@ class ShoutApp(rumps.App):
         sender.state = loginitem.enabled()
         print(f"[login] open-at-login -> {loginitem.status_label()} ({msg})")
         if not ok:
-            rumps.notification("shout", "Could not change Open at Login", msg)
+            rumps.notification("Kyanth", "Could not change Open at Login", msg)
 
     def _reopen_input_device(self):
         """Switch microphones without a restart."""
         try:
             if self.recorder is not None:
                 self.recorder.close()
-            index = shout.resolve_input_device(self.cfg.input_device)
-            self.recorder = shout.Recorder(device=index,
+            index = kyanth.resolve_input_device(self.cfg.input_device)
+            self.recorder = kyanth.Recorder(device=index,
                                            lead_skip_ms=self.cues.lead_ms)
             if self.daemon is not None:
                 self.daemon.recorder = self.recorder
@@ -825,12 +825,12 @@ class ShoutApp(rumps.App):
                   f"{self.cfg.input_device or 'system default'} (index {index})")
         except Exception as exc:
             print(f"[audio] could not open {self.cfg.input_device}: {exc}")
-            rumps.notification("shout", "Microphone unavailable",
+            rumps.notification("Kyanth", "Microphone unavailable",
                                f"Could not open {self.cfg.input_device}.")
 
     def on_reload(self, _):
         self.cfg = config_mod.load()
-        rumps.notification("shout", "Config reloaded",
+        rumps.notification("Kyanth", "Config reloaded",
                            "Model changes need a server restart.")
 
     def on_reopen(self, _=None):
@@ -863,8 +863,8 @@ class ShoutApp(rumps.App):
 
         print(f"[upgrade] {installed} is installed, running {version.VERSION} "
               f"— handing over")
-        rumps.notification("shout", f"Updating to {installed}",
-                           "shout will restart in a moment.")
+        rumps.notification("Kyanth", f"Updating to {installed}",
+                           "Kyanth will restart in a moment.")
         bundle = version.installed_bundle()
         version.clear_running()
         self.server.stop()
@@ -911,7 +911,7 @@ class ShoutApp(rumps.App):
             self.daemon.rebind(hk, mode)      # live, no restart
         self._apply_state("idle")
         print(f"[settings] hotkey={hk.label()} mode={mode}")
-        rumps.notification("shout", "Shortcut updated",
+        rumps.notification("Kyanth", "Shortcut updated",
                            f"{'Hold' if mode == MODE_HOLD else 'Toggle'}  {hk.label()}")
 
     def apply_min_press(self, ms: int):
@@ -941,7 +941,7 @@ class ShoutApp(rumps.App):
         self.cfg = config_mod.load()
         self.server.model = self.cfg.model
         ok = self.server.restart()
-        rumps.notification("shout", "Model server",
+        rumps.notification("Kyanth", "Model server",
                            "Restarted" if ok else f"Failed — see {LOG}")
 
     def on_check_updates(self, _=None):
@@ -954,8 +954,8 @@ class ShoutApp(rumps.App):
                 AppHelper.callAfter(subprocess.run,
                                     ["open", version.RELEASE_PAGE])
             else:
-                body = f"shout {version.VERSION} is up to date."
-            AppHelper.callAfter(rumps.notification, "shout", "Updates", body)
+                body = f"Kyanth {version.VERSION} is up to date."
+            AppHelper.callAfter(rumps.notification, "Kyanth", "Updates", body)
             print(f"[update] {body}")
         threading.Thread(target=work, daemon=True).start()
 
@@ -980,7 +980,7 @@ def acquire_single_instance_lock():
     Five had accumulated during development before this was noticed.
     """
     LOGDIR.mkdir(parents=True, exist_ok=True)
-    lock = open(paths.data() / ".shout.lock", "w")
+    lock = open(paths.data() / ".kyanth.lock", "w")
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
@@ -1028,9 +1028,9 @@ def main() -> int:
             return 0
 
     version.record_running()
-    print(f"[start] shout {version.VERSION}")
+    print(f"[start] Kyanth {version.VERSION}")
 
-    app = ShoutApp()
+    app = KyanthApp()
 
     def cleanup(*_):
         version.clear_running()

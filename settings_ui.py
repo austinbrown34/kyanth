@@ -82,16 +82,16 @@ SOURCES = [
 
 PANE_HEAD = {
     "shortcut": ("Shortcut",
-                 "What shout listens for, and proof that it is hearing it."),
+                 "What Kyanth listens for, and proof that it is hearing it."),
     "audio": ("Audio",
-              "Which microphone shout opens, and what it plays back to you."),
+              "Which microphone Kyanth opens, and what it plays back to you."),
     "history": ("History",
                 "Everything you have dictated, newest first. Kept on this "
                 "Mac, capped at 500."),
     "behaviour": ("Behaviour",
-                  "What shout does with the text once it has it."),
+                  "What Kyanth does with the text once it has it."),
     "permissions": ("Permissions",
-                    "What macOS has granted. shout cannot flip these itself."),
+                    "What macOS has granted. Kyanth cannot flip these itself."),
 }
 
 
@@ -137,7 +137,7 @@ class SettingsController(NSObject):
         self.window.setTitlebarAppearsTransparent_(True)
         self.window.setTitleVisibility_(NSWindowTitleHidden)
         self.window.setReleasedWhenClosed_(False)
-        self.window.setTitle_("shout")
+        self.window.setTitle_("Kyanth")
         content = self.window.contentView()
 
         # ---- sidebar: the band, full height, lockup at the top
@@ -227,7 +227,7 @@ class SettingsController(NSObject):
 
         #  Quitting lives here because when the menu bar is full macOS hides
         #  the status icon, and this window is then the only way out.
-        self.quit_btn = chrome.button("Quit shout", self, "quitApp:")
+        self.quit_btn = chrome.button("Quit Kyanth", self, "quitApp:")
         self.quit_btn.setContentTintColor_(tokens.RECORD)
         self.footer.addSubview_(self.quit_btn)
 
@@ -395,7 +395,7 @@ class SettingsController(NSObject):
     @python_method
     def _pane_audio(self):
         width = self._pane_width() - PANE_X * 2
-        import shout as _shout
+        import kyanth as _kyanth
 
         self.device_menu = NSPopUpButton.alloc().initWithFrame_pullsDown_(
             NSMakeRect(0, 0, 260.0, 26.0), False)
@@ -403,7 +403,7 @@ class SettingsController(NSObject):
         #  Listed by name. A saved index would silently point at a different
         #  microphone as soon as any audio device is added or removed.
         self.device_menu.addItemWithTitle_("System default")
-        for name in _shout.input_devices():
+        for name in _kyanth.input_devices():
             self.device_menu.addItemWithTitle_(name)
         if self.input_device:
             idx = self.device_menu.indexOfItemWithTitle_(self.input_device)
@@ -420,7 +420,7 @@ class SettingsController(NSObject):
             NSMakeRect(0, 0, chrome.MeterView.width(), 14.0))
         level_row, _ = chrome.form_row(
             width, "Level", [self.meter2],
-            "Live while this window is open. shout opens the device only "
+            "Live while this window is open. Kyanth opens the device only "
             "while the shortcut is held, so the microphone indicator is not "
             "on the rest of the time.", note_indent=True)
 
@@ -461,13 +461,13 @@ class SettingsController(NSObject):
         self.login_switch.setAction_("loginChanged:")
         login_row, _ = chrome.form_row(
             width, "Open at Login", [self.login_switch],
-            "shout is a menu-bar app with no Dock icon, so without this it "
+            "Kyanth is a menu-bar app with no Dock icon, so without this it "
             "will not come back after a restart.", note_indent=True)
 
         paste_row, _ = chrome.form_row(
             width, "Where text goes",
             [chrome.label("The app in front of you", "rowLabel", tokens.FG)],
-            "shout pastes unless it can positively tell the focused field is "
+            "Kyanth pastes unless it can positively tell the focused field is "
             "not editable, in which case the text is left on the clipboard "
             "and the overlay says so. Guessing wrong in the other direction "
             "loses the dictation entirely.")
@@ -501,9 +501,9 @@ class SettingsController(NSObject):
 
         rows = [
             make("Microphone", "Privacy_Microphone",
-                 "So shout can hear you. Audio never leaves this Mac."),
+                 "So Kyanth can hear you. Audio never leaves this Mac."),
             make("Accessibility", "Privacy_Accessibility",
-                 "So shout can type the text into whatever app you are using."),
+                 "So Kyanth can type the text into whatever app you are using."),
             make("Input Monitoring", "Privacy_ListenEvent",
                  "Usually needed for the shortcut. If “Keys arriving” lights "
                  "up on the Shortcut pane, you do not need it."),
@@ -542,8 +542,8 @@ class SettingsController(NSObject):
 
     @python_method
     def _min_press_ms(self):
-        import shout
-        return getattr(self.app.cfg, "min_press_ms", shout.MIN_UTTERANCE_SEC * 1000)
+        import kyanth
+        return getattr(self.app.cfg, "min_press_ms", kyanth.MIN_UTTERANCE_SEC * 1000)
 
     @python_method
     def _device_label(self):
@@ -580,13 +580,13 @@ class SettingsController(NSObject):
     def _sync_permissions(self):
         from ApplicationServices import AXIsProcessTrusted
         from AVFoundation import AVCaptureDevice, AVMediaTypeAudio
-        import shout
+        import kyanth
 
         states = [
             AVCaptureDevice.authorizationStatusForMediaType_(
                 AVMediaTypeAudio) == 3,
             bool(AXIsProcessTrusted()),
-            shout.input_monitoring_status() == 0,
+            kyanth.input_monitoring_status() == 0,
         ]
         for (anchor, pill, btn), ok in zip(self.perm_rows, states):
             pill.set_state("Granted" if ok else "Not granted", ok)
@@ -604,7 +604,7 @@ class SettingsController(NSObject):
     @python_method
     def push_state(self, state):
         """The app pushes its state here so "Keys arriving" can light the
-        moment shout receives exactly the bound chord — which is the only way
+        moment Kyanth receives exactly the bound chord — which is the only way
         to tell a wrong chord apart from one another app swallowed."""
         pill = getattr(self, "keys_pill", None)
         if pill is None or pill.window() is None:
@@ -683,9 +683,9 @@ class SettingsController(NSObject):
 
     def quitApp_(self, sender):
         alert = NSAlert.alloc().init()
-        alert.setMessageText_("Quit shout?")
+        alert.setMessageText_("Quit Kyanth?")
         alert.setInformativeText_(
-            "Dictation will stop working until you open shout again.")
+            "Dictation will stop working until you open Kyanth again.")
         alert.addButtonWithTitle_("Quit")
         alert.addButtonWithTitle_("Cancel")
         if alert.runModal() == 1000:

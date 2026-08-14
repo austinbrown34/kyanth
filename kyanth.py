@@ -1,4 +1,4 @@
-"""shout — push-to-talk dictation daemon.
+"""Kyanth — push-to-talk dictation daemon.
 
 Hold right-Option, speak, release. Text lands in the focused field.
 
@@ -7,7 +7,7 @@ and the whisper model (resident in whisper-server). Per-utterance cost is
 transcription + paste, ~300ms.
 
 Run:  ./serve.sh          (terminal 1 — keeps the model resident)
-      uv run shout.py     (terminal 2)
+      uv run kyanth.py     (terminal 2)
 """
 
 import argparse
@@ -93,13 +93,13 @@ class Recorder:
 
     An earlier version opened the stream at launch and never closed it, to save
     ~110ms of open latency per press. That was the wrong trade: macOS shows its
-    microphone-in-use indicator for as long as a stream is open, so shout
+    microphone-in-use indicator for as long as a stream is open, so Kyanth
     appeared to be listening every moment it ran. A user reported exactly that,
     and they were right to.
 
     The device is now opened on the first press and released after
     IDLE_RELEASE_SECONDS of no use, so consecutive dictations stay instant while
-    an idle shout holds nothing. The open cost is largely hidden: it overlaps
+    an idle Kyanth holds nothing. The open cost is largely hidden: it overlaps
     the start cue and the user's own reaction time before speaking.
     """
 
@@ -736,7 +736,7 @@ def main() -> int:
     recorder = Recorder(device=args.device)
     threading.Thread(target=worker, args=(jobs, cfg, verbose), daemon=True).start()
 
-    print("shout ready — hold RIGHT OPTION to dictate, ctrl-C to quit")
+    print("Kyanth ready — hold RIGHT OPTION to dictate, ctrl-C to quit")
     try:
         return Daemon(recorder, jobs, verbose,
                       binding=cfg.hotkey, mode=cfg.mode).run()

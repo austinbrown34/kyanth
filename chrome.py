@@ -213,7 +213,7 @@ class LockupView(NSView):
                 tokens.rgb(stops[0]), tokens.rgb(stops[1])
             ).drawInBezierPath_angle_(path, -90.0)
 
-        tokens.attributed("shout", "wordmark", tokens.BAND_FG).drawAtPoint_(
+        tokens.attributed("Kyanth", "wordmark", tokens.BAND_FG).drawAtPoint_(
             NSMakePoint(MARK_W + LOCKUP_GAP, cy - 10.0))
 
 

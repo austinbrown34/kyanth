@@ -538,9 +538,9 @@ class HistoryList(NSView):
         if title == "Paste again":
             #  Re-paste through the same path a live dictation uses, so it
             #  obeys the same "is this field editable" rule.
-            import shout
+            import kyanth
             self.window().orderOut_(None)
-            shout.paste(entry.text)
+            kyanth.paste(entry.text)
         elif title == "Delete":
             self.pane.store.delete(entry)
             self.expanded = None

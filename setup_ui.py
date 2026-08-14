@@ -147,20 +147,20 @@ class SetupController(NSObject):
             self._open_pane("Privacy_Accessibility")
 
         def listen_ok():
-            import shout
-            return shout.input_monitoring_status() == 0
+            import kyanth
+            return kyanth.input_monitoring_status() == 0
 
         def listen_act():
-            import shout
+            import kyanth
             #  Once denied, macOS never prompts again and the app may not even
             #  appear in the list — leaving the user to hunt for the "+"
             #  button. Clearing our own TCC entry (no sudo needed) makes the
             #  system prompt fire again, which also adds us to the list.
-            if shout.input_monitoring_status() == 1:
+            if kyanth.input_monitoring_status() == 1:
                 subprocess.run(
                     ["tccutil", "reset", "ListenEvent", paths.BUNDLE_ID],
                     capture_output=True, check=False)
-            shout.request_input_monitoring()
+            kyanth.request_input_monitoring()
             self._open_pane("Privacy_ListenEvent")
 
         def audio_ok():
@@ -215,26 +215,26 @@ class SetupController(NSObject):
 
         return [
             Step("mic", "Permissions", "Microphone",
-                 "Granted. shout opens the stream while the shortcut is held "
+                 "Granted. Kyanth opens the stream while the shortcut is held "
                  "and closes it on release.",
-                 "Not granted. Without it shout hears silence rather than an "
+                 "Not granted. Without it Kyanth hears silence rather than an "
                  "error, so nothing will appear to happen.",
                  mic_ok, mic_act, "Grant Access"),
             Step("ax", "Permissions", "Accessibility",
-                 "Granted. This is what lets shout paste into the app in "
+                 "Granted. This is what lets Kyanth paste into the app in "
                  "front of you.",
-                 "Not granted. macOS will not enable this on shout’s behalf — "
+                 "Not granted. macOS will not enable this on Kyanth’s behalf — "
                  "switch it on in the list that opens.",
                  ax_ok, ax_act),
             Step("listen", "Permissions", "Input Monitoring",
-                 "Granted. shout sees the shortcut while another app is "
+                 "Granted. Kyanth sees the shortcut while another app is "
                  "frontmost.",
                  "Not granted. Usually needed for the shortcut, but optional — "
-                 "if “Shortcut reaches shout” below is satisfied, ignore this.",
+                 "if “Shortcut reaches Kyanth” below is satisfied, ignore this.",
                  listen_ok, listen_act, optional=True),
 
             Step("audio", "Hardware & model", "Input device",
-                 "The input device opens. shout releases it again when idle.",
+                 "The input device opens. Kyanth releases it again when idle.",
                  "The input device did not open. Check the microphone selected "
                  "in Settings, then try again.",
                  audio_ok, None, ""),
@@ -244,15 +244,15 @@ class SetupController(NSObject):
                  "restarting it usually clears this.",
                  server_ok, server_act, "Restart"),
             Step("login", "Hardware & model", "Open at Login",
-                 "shout starts itself after a restart.",
-                 "Optional, and it never blocks. Without it shout will not "
+                 "Kyanth starts itself after a restart.",
+                 "Optional, and it never blocks. Without it Kyanth will not "
                  "start itself after a restart.",
                  login_ok, login_act, "Turn On", optional=True),
 
-            Step("tap", "Verification", "Shortcut reaches shout",
-                 "Registered system-wide. shout sees the key combination from "
+            Step("tap", "Verification", "Shortcut reaches Kyanth",
+                 "Registered system-wide. Kyanth sees the key combination from "
                  "any app.",
-                 "Not registered. shout could not install the key tap — "
+                 "Not registered. Kyanth could not install the key tap — "
                  "granting the permissions above is what usually fixes it.",
                  tap_ok, None, ""),
             Step("test", "Verification", "Say something",
@@ -302,7 +302,7 @@ class SetupController(NSObject):
         self.window.setTitleVisibility_(NSWindowTitleHidden)
         self.window.setMovableByWindowBackground_(True)
         self.window.setReleasedWhenClosed_(False)
-        self.window.setTitle_("shout Setup")
+        self.window.setTitle_("Kyanth Setup")
 
         # ---- band: lockup top-left, headline, ring top-right
         self.band = chrome.BandView.alloc().initWithFrame_(
@@ -330,7 +330,7 @@ class SetupController(NSObject):
             NSMakeRect(0, 0, W, chrome.FOOTER_H))
         self.footer.setAutoresizingMask_(2)
         self.footer.addSubview_(
-            chrome.label(f"shout {_v.VERSION}", "version", tokens.MUTED,
+            chrome.label(f"Kyanth {_v.VERSION}", "version", tokens.MUTED,
                          x=chrome.PAD, y=17.0))
 
         self.done_btn = chrome.button("Finish", self, "finish:", primary=True,
@@ -350,7 +350,7 @@ class SetupController(NSObject):
         #  full menu bar, otherwise has no way to reach Settings or to quit at
         #  all. These stay reachable, just not as four competing buttons.
         more = chrome.popup("Options", [("Open Log", 0), ("Settings…", 1),
-                                        ("Quit shout", 2)],
+                                        ("Quit Kyanth", 2)],
                             self, "more:")
         more.setFrameOrigin_(NSMakePoint(
             later.frame().origin.x - more.frame().size.width - 6.0, 9.0))
@@ -397,7 +397,7 @@ class SetupController(NSObject):
         self.dupe_box = chrome.BoxView.alloc().initWithFrame_(
             NSMakeRect(chrome.PAD, 0, BOX_W, 10))
         self.dupe_row = self._make_row(
-            "Extra copies of shout are installed",
+            "Extra copies of Kyanth are installed",
             "Dragging to Applications twice is easy to do by accident, and it "
             "makes updates appear not to take effect. Only one copy should "
             "exist.", "Remove Extras", "dupesAction:")
@@ -549,7 +549,7 @@ class SetupController(NSObject):
         if not copies:
             return
         alert = NSAlert.alloc().init()
-        alert.setMessageText_("Extra copies of shout found")
+        alert.setMessageText_("Extra copies of Kyanth found")
         alert.setInformativeText_(
             "These will be moved to the Trash:\n\n" + "\n".join(copies))
         alert.addButtonWithTitle_("Move to Trash")
@@ -674,7 +674,7 @@ class SetupController(NSObject):
         self.ring.set_progress(done_total, len(self.steps))
 
         if blocking is None:
-            chrome.set_text(self.headline, "shout is ready", "setupTitle",
+            chrome.set_text(self.headline, "Kyanth is ready", "setupTitle",
                             tokens.BAND_FG)
             skipped = [s.title for s in self.steps if s.state == WARN]
             self._say("Every check passes and a real dictation has already "
@@ -695,9 +695,9 @@ class SetupController(NSObject):
     def _hint(self, step):
         if step.group == "Permissions":
             return ("Permissions can only be granted by you in System "
-                    "Settings — shout cannot flip those switches on its own.")
+                    "Settings — Kyanth cannot flip those switches on its own.")
         if step.key == "test":
             return ("Everything is configured. One real dictation confirms it "
                     "actually works.")
-        return ("This one shout can usually fix itself — use the button on "
+        return ("This one Kyanth can usually fix itself — use the button on "
                 "the row below.")

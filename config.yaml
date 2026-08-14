@@ -1,4 +1,4 @@
-# shout configuration. Edit and restart the daemon.
+# Kyanth configuration. Edit and restart the daemon.
 
 model: models/ggml-base.en.bin
 

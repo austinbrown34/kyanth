@@ -20,7 +20,7 @@ from pathlib import Path
 import paths
 from paths import BUNDLE_ID
 
-VERSION = "2.0.5"
+VERSION = "2.1.0"
 
 
 def _parse(v: str) -> tuple:
@@ -37,13 +37,13 @@ def is_newer(a: str, b: str) -> bool:
 
 
 def lock_path() -> Path:
-    return paths.data() / ".shout.lock"
+    return paths.data() / ".kyanth.lock"
 
 
 def _meta_path() -> Path:
     #  Kept beside the lock rather than inside it: the lock is held open by
     #  flock for the process lifetime, and rewriting it in place races.
-    return paths.data() / ".shout.running.json"
+    return paths.data() / ".kyanth.running.json"
 
 
 def record_running() -> None:
@@ -72,9 +72,9 @@ def running_info() -> dict:
 
 
 def _other_instance_pid() -> int | None:
-    """PID of another shout app binary, excluding ourselves.
+    """PID of another Kyanth app binary, excluding ourselves.
 
-    Matches on "/shout.app/Contents/MacOS/" rather than a bare name so a
+    Matches on "/Kyanth.app/Contents/MacOS/" rather than a bare name so a
     developer running from source, or an unrelated process, is never targeted.
     """
     import subprocess
@@ -86,7 +86,7 @@ def _other_instance_pid() -> int | None:
         return None
     for line in out.splitlines():
         line = line.strip()
-        if "/shout.app/Contents/MacOS/" not in line:
+        if "/Kyanth.app/Contents/MacOS/" not in line:
             continue
         head = line.split(None, 1)[0]
         if not head.isdigit():
@@ -116,7 +116,7 @@ def supersede_older(timeout: float = 8.0) -> tuple[bool, str]:
     if not info:
         # A build older than version tracking leaves no record. That is exactly
         # the upgrade this feature exists for, so fall back to identifying the
-        # holder by process: any other shout binary running from our own bundle
+        # holder by process: any other Kyanth binary running from our own bundle
         # path is by definition the copy we have just replaced.
         pid = _other_instance_pid()
         if pid is None:
@@ -175,8 +175,8 @@ def supersede_older(timeout: float = 8.0) -> tuple[bool, str]:
 
 # ------------------------------------------------------------- updates
 
-RELEASE_API = "https://api.github.com/repos/austinbrown34/shout/releases/latest"
-RELEASE_PAGE = "https://github.com/austinbrown34/shout/releases/latest"
+RELEASE_API = "https://api.github.com/repos/austinbrown34/kyanth/releases/latest"
+RELEASE_PAGE = "https://github.com/austinbrown34/kyanth/releases/latest"
 
 
 def latest_release(timeout: float = 6.0) -> tuple[str | None, str]:
@@ -200,11 +200,11 @@ def latest_release(timeout: float = 6.0) -> tuple[str | None, str]:
 def installed_bundle() -> str:
     """Path of the installed app, which may differ from the running one after
     an upgrade has been dragged into place."""
-    for candidate in ("/Applications/shout.app",
-                      str(Path.home() / "Applications" / "shout.app")):
+    for candidate in ("/Applications/Kyanth.app",
+                      str(Path.home() / "Applications" / "Kyanth.app")):
         if Path(candidate).is_dir():
             return candidate
-    return "/Applications/shout.app"
+    return "/Applications/Kyanth.app"
 
 
 def installed_version() -> str | None:
@@ -229,11 +229,11 @@ def installed_version() -> str | None:
 # ---------------------------------------------------------- duplicates
 
 def duplicate_bundles() -> list[str]:
-    """Other copies of shout.app besides the one we are running from.
+    """Other copies of Kyanth.app besides the one we are running from.
 
     Dragging the app to Applications twice is easy to do by accident — the
-    drop gives no feedback, so people repeat it — and leaves "shout 2.app"
-    alongside "shout.app". Both carry the same bundle identifier, so only one
+    drop gives no feedback, so people repeat it — and leaves "Kyanth 2.app"
+    alongside "Kyanth.app". Both carry the same bundle identifier, so only one
     can run (the file lock sees to that), but the update handover then compares
     against whichever copy was launched, and an update can appear not to take.
     """
@@ -244,7 +244,7 @@ def duplicate_bundles() -> list[str]:
     if not paths.FROZEN:
         return []
 
-    #  sys.executable is .../shout.app/Contents/MacOS/shout when frozen, which
+    #  sys.executable is .../Kyanth.app/Contents/MacOS/Kyanth when frozen, which
     #  identifies our own bundle exactly. paths.resources() points at the
     #  unpacked resource dir and does not.
     running = str(Path(sys.executable).resolve())

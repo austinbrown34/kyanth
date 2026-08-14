@@ -1,4 +1,4 @@
-"""Generate shout's app icon and menu-bar glyphs — Level.
+"""Generate Kyanth's app icon and menu-bar glyphs — Level.
 
 The mark is a meter, not a microphone. Three rounded bars in 34 : 62 : 46,
 centre bar carrying the only colour. The argument for dropping the vintage
@@ -10,7 +10,7 @@ Four shapes, three gradients, all expressible in CoreGraphics, so this file
 keeps its job and no external asset pipeline is required.
 
 Outputs:
-  assets/shout.icns              app icon, every size
+  assets/kyanth.icns              app icon, every size
   assets/menubar-<state>.png/@2x six 20 pt template glyphs
 
 Run:  uv run make_icons.py
@@ -222,7 +222,7 @@ TRANSCRIBING_FRAMES = 3
 def main() -> int:
     ASSETS.mkdir(exist_ok=True)
 
-    iconset = ASSETS / "shout.iconset"
+    iconset = ASSETS / "kyanth.iconset"
     iconset.mkdir(exist_ok=True)
     for px in ICNS_SIZES:
         ctx = draw_icon(px)
@@ -231,7 +231,7 @@ def main() -> int:
             write_png(ctx, iconset / f"icon_{px // 2}x{px // 2}@2x.png")
     print(f"  iconset: {len(list(iconset.glob('*.png')))} pngs")
 
-    icns = ASSETS / "shout.icns"
+    icns = ASSETS / "kyanth.icns"
     result = subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(icns)],
                             capture_output=True, text=True)
     if result.returncode != 0:

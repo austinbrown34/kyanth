@@ -12,4 +12,4 @@ if ! pgrep -f "whisper-server.*8178" >/dev/null; then
   done
 fi
 
-exec uv run shout.py "$@"
+exec uv run kyanth.py "$@"

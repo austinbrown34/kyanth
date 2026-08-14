@@ -4,7 +4,7 @@ Append-only JSONL so a crash can never corrupt more than the last line, and so
 appending stays O(1) regardless of how much history has accumulated. The file is
 trimmed on load rather than on every write.
 
-Everything here is local — the whole point of shout is that transcripts never
+Everything here is local — the whole point of Kyanth is that transcripts never
 leave the machine, and that includes this file.
 """
 

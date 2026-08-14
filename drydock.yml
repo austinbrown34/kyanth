@@ -1,4 +1,4 @@
-# shout is a macOS-only menu-bar dictation daemon: it uses PyObjC/Quartz global
+# Kyanth is a macOS-only menu-bar dictation daemon: it uses PyObjC/Quartz global
 # hotkeys (right-Option), rumps for the status item, sounddevice for capture, and
 # shells out to a local whisper-server binary, then types text into the focused
 # field via Accessibility APIs. It never serves HTTP — the only "server" in the
@@ -6,10 +6,10 @@
 # itself, on loopback, with no browsable UI. Requires macOS Accessibility and
 # Input Monitoring grants plus a physical microphone, so it cannot run in a Linux
 # container: kind: showcase, no build/run/deps blocks.
-name: shout
+name: Kyanth
 kind: showcase
 meta:
-  title: shout
+  title: Kyanth
   tagline: Hold right-Option, speak, and the text lands in whatever field you were typing in.
   stack:
     - Python

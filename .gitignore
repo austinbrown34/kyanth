@@ -11,8 +11,8 @@ build/
 dist/
 vendor/
 *.dmg
-shout.app/
-assets/shout.iconset/
+Kyanth.app/
+assets/kyanth.iconset/
 assets/cue-*.wav
 
 # Runtime state — these contain your transcriptions and local settings
@@ -21,7 +21,7 @@ settings.json
 cues/
 logs/
 .scratch/
-.shout.lock
+.kyanth.lock
 
 # macOS
 .DS_Store

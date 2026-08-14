@@ -1,4 +1,4 @@
-# shout — a local, free dictation layer for macOS
+# Kyanth — a local, free dictation layer for macOS
 
 A from-scratch alternative to [Voicy](https://usevoicy.com/) ($102/yr) that runs entirely on this machine.
 
@@ -117,7 +117,7 @@ tap = CGEventTapCreate(
 **Permissions required:** Accessibility, Input Monitoring, Microphone. Grant all three in
 System Settings → Privacy & Security before the daemon will work. Note that during
 development the permission is granted to the *interpreter binary* (e.g. the pyenv
-`python3`), not to `shout` — re-granting is needed if the interpreter path changes.
+`python3`), not to `Kyanth` — re-granting is needed if the interpreter path changes.
 
 ### 3.2 Text injection
 
@@ -189,7 +189,7 @@ Cheap to build here, absent from the paid product:
 post-transcription replacement pass, and injected into the LLM cleanup prompt as context.
 
 ```yaml
-# ~/.config/shout/vocab.yaml
+# ~/.config/Kyanth/vocab.yaml
 terms:
   - kubectl
   - Postgres
@@ -285,7 +285,7 @@ are unrestricted.
 
 **Recommendation:** run VoiceInk for a week first. It costs nothing and will tell you
 precisely which parts of the UX you'd do differently — which is far better input into a
-from-scratch build than starting cold. Then build `shout` if you want to own the stack,
+from-scratch build than starting cold. Then build `Kyanth` if you want to own the stack,
 or fork if you just want to stop paying $102/yr.
 
 ---

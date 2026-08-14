@@ -1,8 +1,8 @@
-# PyInstaller spec — builds a self-contained, properly branded shout.app.
+# PyInstaller spec — builds a self-contained, properly branded Kyanth.app.
 #
 # The point of freezing rather than shipping a launcher script: the bundle's
-# executable becomes a real Mach-O binary named `shout`, so macOS attributes
-# TCC permissions to *shout* and shows its icon in System Settings. A script
+# executable becomes a real Mach-O binary named `Kyanth`, so macOS attributes
+# TCC permissions to *Kyanth* and shows its icon in System Settings. A script
 # that exec's Python makes the process literally be Python, which is why
 # permissions used to read "Python 3.14".
 #
@@ -12,10 +12,10 @@ import plistlib
 from pathlib import Path
 
 ROOT = Path(SPECPATH)
-VERSION = "2.0.5"
+VERSION = "2.1.0"
 
 datas = [
-    (str(ROOT / "assets" / "shout.icns"), "assets"),
+    (str(ROOT / "assets" / "kyanth.icns"), "assets"),
     (str(ROOT / "config.yaml"), "."),
 ]
 for png in sorted((ROOT / "assets").glob("menubar-*.png")):
@@ -43,7 +43,7 @@ a = Analysis(
     hiddenimports=[
         "config", "history", "hotkey", "loginitem", "paths", "postprocess",
         "tokens",
-        "overlay", "settings_ui", "setup_ui", "shout", "sounds", "vad", "version",
+        "overlay", "settings_ui", "setup_ui", "Kyanth", "sounds", "vad", "version",
     ],
     excludes=["tkinter", "matplotlib", "PIL", "pytest", "setuptools"],
     noarchive=False,
@@ -53,23 +53,23 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz, a.scripts, [],
     exclude_binaries=True,
-    name="shout",                 # -> Contents/MacOS/shout, the TCC identity
+    name="Kyanth",                 # -> Contents/MacOS/Kyanth, the TCC identity
     console=False,
     target_arch="arm64",
     codesign_identity=None,       # build_release.sh signs the whole bundle
     entitlements_file=str(ROOT / "entitlements.plist"),
 )
-coll = COLLECT(exe, a.binaries, a.datas, name="shout")
+coll = COLLECT(exe, a.binaries, a.datas, name="Kyanth")
 
 app = BUNDLE(
     coll,
-    name="shout.app",
-    icon=str(ROOT / "assets" / "shout.icns"),
-    bundle_identifier="com.austinbrown.shout",
+    name="Kyanth.app",
+    icon=str(ROOT / "assets" / "kyanth.icns"),
+    bundle_identifier="com.austinbrown.kyanth",
     version=VERSION,
     info_plist={
-        "CFBundleName": "shout",
-        "CFBundleDisplayName": "shout",
+        "CFBundleName": "Kyanth",
+        "CFBundleDisplayName": "Kyanth",
         "CFBundleShortVersionString": VERSION,
         "CFBundleVersion": VERSION,
         "LSMinimumSystemVersion": "13.0",
@@ -78,9 +78,9 @@ app = BUNDLE(
         "NSHighResolutionCapable": True,
         # These strings are what the permission prompts actually say.
         "NSMicrophoneUsageDescription":
-            "shout transcribes your speech on this Mac to type it into the app "
+            "Kyanth transcribes your speech on this Mac to type it into the app "
             "you are using. Audio never leaves your computer.",
         "NSAppleEventsUsageDescription":
-            "shout pastes transcribed text into the app you are using.",
+            "Kyanth pastes transcribed text into the app you are using.",
     },
 )

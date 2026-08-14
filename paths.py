@@ -7,7 +7,7 @@ must be kept apart:
   resources   code, model, vendored whisper binaries, default config, icons
               -> inside the bundle when frozen, the repo when not
   user data   config the user edits, settings, history, logs, generated cues
-              -> always ~/Library/Application Support/shout
+              -> always ~/Library/Application Support/Kyanth
 
 In development both happen to live in the repo, which is why this distinction
 did not exist until packaging forced it.
@@ -20,8 +20,8 @@ from pathlib import Path
 #  PyInstaller sets both; _MEIPASS is where bundled data was unpacked.
 FROZEN = getattr(sys, "frozen", False)
 
-APP_NAME = "shout"
-BUNDLE_ID = "com.austinbrown.shout"
+APP_NAME = "Kyanth"
+BUNDLE_ID = "com.austinbrown.kyanth"
 
 
 def resources() -> Path:
@@ -31,11 +31,43 @@ def resources() -> Path:
     return Path(__file__).resolve().parent
 
 
+LEGACY_APP_NAME = "shout"
+
+
 def data() -> Path:
     """Writable per-user state. Created on demand."""
     d = Path.home() / "Library" / "Application Support" / APP_NAME
+    if not d.exists():
+        _migrate_legacy(d)
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+def _migrate_legacy(new: Path) -> None:
+    """Carry a pre-rename install's history, settings and config across.
+
+    The rename changed the bundle identifier, so macOS treats this as an
+    entirely new app — permissions reset, and the old state would otherwise sit
+    orphaned under the old name with the user seeing an empty history and their
+    shortcut reverted to the default.
+
+    Moved rather than copied: two live copies would diverge silently, and the
+    old app is being replaced, not run alongside.
+    """
+    old = Path.home() / "Library" / "Application Support" / LEGACY_APP_NAME
+    if not old.is_dir():
+        return
+    try:
+        new.parent.mkdir(parents=True, exist_ok=True)
+        old.rename(new)
+        #  Lock and liveness files name the old process; they mean nothing now
+        #  and a stale lock would look like an instance that is already running.
+        for stale in (".shout.lock", ".shout.running.json"):
+            (new / stale).unlink(missing_ok=True)
+        print(f"[migrate] carried over {old.name} -> {new.name}", flush=True)
+    except OSError as exc:
+        #  Never fatal: a fresh install is a working install, just an empty one.
+        print(f"[migrate] could not move {old}: {exc}", flush=True)
 
 
 def logs() -> Path:

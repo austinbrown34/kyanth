@@ -1,6 +1,6 @@
 """Short audio cues.
 
-The menu-bar icon is the only state indicator shout has, and on a full menu bar
+The menu-bar icon is the only state indicator Kyanth has, and on a full menu bar
 macOS hides it with no warning — leaving no way to tell "recording" from
 "ignored your tap" from "broken". These cues make state audible instead.
 

@@ -1,23 +1,32 @@
 #!/usr/bin/env bash
-# Build a signed, notarizable shout.app and wrap it in a drag-to-Applications
-# DMG. Produces dist/shout-<version>.dmg.
+# Build a signed, notarizable Kyanth.app and wrap it in a drag-to-Applications
+# DMG. Produces dist/kyanth-<version>.dmg.
 #
 #   ./build_release.sh                 sign with Developer ID, no notarization
 #   ./build_release.sh --notarize      also submit to Apple and staple
 #   ./build_release.sh --adhoc         ad-hoc signature (local testing only)
 #
 # Notarization needs credentials, supplied either as a stored keychain profile
-#   xcrun notarytool store-credentials shout-notary \
+#   xcrun notarytool store-credentials kyanth-notary \
 #     --apple-id you@example.com --team-id TEAMID --password APP_SPECIFIC_PW
 # or as APPLE_ID / TEAM_ID / APP_PASSWORD in the environment.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION="$(grep -m1 '^VERSION = ' shout.spec | cut -d'"' -f2)"
-APP="dist/shout.app"
-DMG="dist/shout-$VERSION.dmg"
-IDENTITY="${SHOUT_IDENTITY:-Developer ID Application}"
-NOTARY_PROFILE="${SHOUT_NOTARY_PROFILE:-shout-notary}"
+VERSION="$(grep -m1 '^VERSION = ' kyanth.spec | cut -d'"' -f2)"
+APP="dist/Kyanth.app"
+DMG="dist/kyanth-$VERSION.dmg"
+IDENTITY="${KYANTH_IDENTITY:-Developer ID Application}"
+NOTARY_PROFILE="${KYANTH_NOTARY_PROFILE:-kyanth-notary}"
+# The keychain profile predates the rename. Fall back rather than fail a build
+# on a name; create the new one with:
+#   xcrun notarytool store-credentials kyanth-notary --apple-id ... --team-id ...
+if ! xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
+  if xcrun notarytool history --keychain-profile shout-notary >/dev/null 2>&1; then
+    echo "note: using legacy keychain profile 'shout-notary'" >&2
+    NOTARY_PROFILE="shout-notary"
+  fi
+fi
 
 NOTARIZE=0
 ADHOC=0
@@ -50,10 +59,10 @@ fi
 # surface only when the frozen app refuses to launch.
 # Version must match in both places or the upgrade handover compares against
 # the wrong number.
-SPEC_V="$(grep -m1 '^VERSION = ' shout.spec | cut -d'"' -f2)"
+SPEC_V="$(grep -m1 '^VERSION = ' kyanth.spec | cut -d'"' -f2)"
 MOD_V="$(grep -m1 '^VERSION = ' version.py | cut -d'"' -f2)"
 [ "$SPEC_V" = "$MOD_V" ] || {
-  echo "version mismatch: shout.spec=$SPEC_V version.py=$MOD_V" >&2; exit 1; }
+  echo "version mismatch: kyanth.spec=$SPEC_V version.py=$MOD_V" >&2; exit 1; }
 
 echo "==> import check"
 uv run python -c "
@@ -85,15 +94,15 @@ if dupes:
 
 for m in ('paths','config','hotkey','postprocess','vad','sounds','history',
           'loginitem','tokens','chrome','overlay','menuheader','history_view',
-          'shout','settings_ui','setup_ui','menubar'):
+          'kyanth','settings_ui','setup_ui','menubar'):
     importlib.import_module(m)
 print('    all modules import cleanly, no class-name collisions')
 " || { echo "import check failed — not building" >&2; exit 1; }
 
 # -------------------------------------------------------------- 3. build
 echo "==> building app bundle"
-rm -rf build dist/shout dist/shout.app
-uv run pyinstaller shout.spec --noconfirm --clean --log-level WARN
+rm -rf build dist/Kyanth dist/Kyanth.app
+uv run pyinstaller kyanth.spec --noconfirm --clean --log-level WARN
 
 # --------------------------------------------------------------- 4. sign
 # Inside-out order is mandatory: nested code must be signed before the bundle
@@ -147,7 +156,7 @@ fi
 # ---------------------------------------------------------- 5. notarize
 if [ "$NOTARIZE" -eq 1 ]; then
   echo "==> notarizing (this takes a few minutes)"
-  ZIP="dist/shout-$VERSION.zip"
+  ZIP="dist/kyanth-$VERSION.zip"
   ditto -c -k --keepParent "$APP" "$ZIP"
   if xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
     CRED=(--keychain-profile "$NOTARY_PROFILE")
@@ -181,7 +190,7 @@ rm -rf dist/dmg "$DMG"
 mkdir -p dist/dmg
 cp -R "$APP" dist/dmg/
 ln -s /Applications dist/dmg/Applications
-hdiutil create -volname "shout" -srcfolder dist/dmg -ov -format UDZO "$DMG" >/dev/null
+hdiutil create -volname "Kyanth" -srcfolder dist/dmg -ov -format UDZO "$DMG" >/dev/null
 rm -rf dist/dmg
 [ "$ADHOC" -eq 0 ] && codesign --force --sign "$IDENTITY" "$DMG"
 
@@ -206,7 +215,7 @@ if xcrun stapler validate "$DMG" >/dev/null 2>&1; then
   echo "NOTARIZED — opens with no Gatekeeper warning. Publish: ./publish_release.sh"
 else
   echo "*** NOT NOTARIZED ***"
-  echo "    Users will see \"Apple could not verify shout is free of malware\"."
+  echo "    Users will see \"Apple could not verify Kyanth is free of malware\"."
   echo "    For a build you intend to ship, run: ./build_release.sh --notarize"
 fi
 exit 0

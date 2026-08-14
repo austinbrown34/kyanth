@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Unregister the login item, stop shout, and remove the installed runtime.
+# Unregister the login item, stop Kyanth, and remove the installed runtime.
 set -euo pipefail
 
-PREFIX="$HOME/Library/Application Support/shout"
-APP="$HOME/Applications/shout.app"
-LABEL="local.shout.dictation"
+PREFIX="$HOME/Library/Application Support/Kyanth"
+APP="$HOME/Applications/Kyanth.app"
+LABEL="local.kyanth.dictation"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 
 launchctl bootout "gui/$UID/$LABEL" 2>/dev/null && echo "agent unloaded" || echo "agent not loaded"

@@ -1,11 +1,11 @@
-# shout
+# Kyanth
 
 Push-to-talk dictation for macOS that runs **entirely on your machine**. Hold a key, speak,
 release — the text lands in whatever field you were typing in.
 
 Built as a free replacement for [Voicy](https://usevoicy.com/) ($102/yr), which is a thin
 client over a hosted Whisper API: every dictation leaves your machine, there is no offline
-mode, and no custom vocabulary. shout transcribes locally in ~150–300 ms, works on a plane,
+mode, and no custom vocabulary. Kyanth transcribes locally in ~150–300 ms, works on a plane,
 and never sends your audio anywhere. See [PROPOSAL.md](PROPOSAL.md) for the full
 competitive analysis and architecture.
 
@@ -15,8 +15,8 @@ competitive analysis and architecture.
 
 ### From the release DMG (recommended)
 
-1. Download `shout-1.0.0.dmg`
-2. Open it and drag **shout** to Applications
+1. Download `kyanth-1.0.0.dmg`
+2. Open it and drag **Kyanth** to Applications
 3. Launch it from Applications
 
 The build is signed and **notarized by Apple**, so it opens normally — no
@@ -30,7 +30,7 @@ Requires **macOS 13+ on Apple Silicon**.
 
 ### First run — the setup window walks you through it
 
-On first launch shout opens a **Setup** window with seven checks. Each row shows a live
+On first launch Kyanth opens a **Setup** window with seven checks. Each row shows a live
 status, and the one that needs you has a button that opens the right settings pane:
 
 ```
@@ -51,17 +51,17 @@ green; it is marked complete when a real dictation has round-tripped and produce
 Green permissions prove configuration, not function.
 
 macOS will not enable Accessibility or Input Monitoring on an app's behalf — you have to
-switch **shout** on in each list. The window says so, and tells you which one it is
+switch **Kyanth** on in each list. The window says so, and tells you which one it is
 waiting for.
 
 Reopen it any time from the menu: **Setup Check…**
 
-Both windows carry a **Quit shout** button. That matters more than it sounds: when the
+Both windows carry a **Quit Kyanth** button. That matters more than it sounds: when the
 menu bar is full macOS hides the status icon, and the window is then the only way to quit
 the app.
 
 > Without Accessibility, `CGEventPost` silently does nothing — no error, no exception.
-> The app would look like it was working while nothing reached your document. shout
+> The app would look like it was working while nothing reached your document. Kyanth
 > checks explicitly and reports it in the menu rather than failing quietly.
 
 ---
@@ -72,9 +72,9 @@ Only needed if you're changing the code or producing your own release.
 
 ```bash
 brew install uv whisper-cpp        # build-time only; not needed by the built app
-git clone https://github.com/austinbrown34/shout.git
-cd shout
-./build_release.sh                 # -> dist/shout-<version>.dmg
+git clone https://github.com/austinbrown34/kyanth.git
+cd Kyanth
+./build_release.sh                 # -> dist/kyanth-<version>.dmg
 ```
 
 | Flag | Effect |
@@ -91,7 +91,7 @@ freezes the app with PyInstaller, signs inside-out, and builds the DMG.
 Store credentials once, then build:
 
 ```bash
-xcrun notarytool store-credentials shout-notary \
+xcrun notarytool store-credentials kyanth-notary \
   --apple-id you@example.com --team-id YOURTEAMID \
   --password <app-specific-password>      # appleid.apple.com -> Sign-In and Security
 
@@ -114,7 +114,7 @@ uv sync
 ./run.sh          # terminal daemon, logs to stdout
 ```
 
-Permissions attach to your *terminal* in this mode, not to shout — see
+Permissions attach to your *terminal* in this mode, not to Kyanth — see
 [Engineering notes](#engineering-notes).
 
 ---
@@ -126,7 +126,7 @@ previous clipboard is restored.
 
 ### Activation modes
 
-Set in **Settings → Shortcut** — from the menu-bar icon, or by launching shout again from
+Set in **Settings → Shortcut** — from the menu-bar icon, or by launching Kyanth again from
 your Applications folder. There is no Save button: changes apply as you make them.
 
 | Mode | Behavior |
@@ -157,12 +157,12 @@ The pill follows the pointer's screen, not the focused one, so on a multi-monito
 appears where you are looking.
 
 It is a non-activating panel: it floats above other windows and across Spaces without ever
-taking focus. That is not cosmetic — shout pastes into whatever app is frontmost, so an
+taking focus. That is not cosmetic — Kyanth pastes into whatever app is frontmost, so an
 overlay that became key window would redirect your dictation into itself.
 
 ### Microphone use
 
-shout opens the input device on your first press and **releases it after 30 seconds idle**,
+Kyanth opens the input device on your first press and **releases it after 30 seconds idle**,
 so macOS shows its microphone indicator only while you are actually dictating. Consecutive
 dictations stay instant; the first press after a pause costs about 110 ms, which is
 absorbed by the start cue and the moment before you begin speaking.
@@ -220,7 +220,7 @@ caps, so "is it hearing me" is answered before you click anything.
 
 ## Configuration
 
-Two files, both under `~/Library/Application Support/shout/`.
+Two files, both under `~/Library/Application Support/Kyanth/`.
 
 **`settings.json`** — written by the Settings window: shortcut, mode, sound.
 
@@ -230,7 +230,7 @@ rewrites and reformats your commented YAML.
 
 ### Custom vocabulary
 
-Whisper has no vocabulary API, so shout corrects terms after transcription. This fixes most
+Whisper has no vocabulary API, so Kyanth corrects terms after transcription. This fixes most
 jargon errors — and it's something Voicy offers at no price point.
 
 ```yaml
@@ -269,9 +269,9 @@ see [Benchmarks](#benchmarks).
 **Update:** drag the new build over the old one in Applications, then open it. The running
 copy notices it has been replaced, hands over, and relaunches into the new version — you
 just see a brief "Updating to x.y.z" notification. Your config, settings and history live
-in `~/Library/Application Support/shout` and are untouched.
+in `~/Library/Application Support/Kyanth` and are untouched.
 
-> **Upgrading from 1.0.0 specifically requires quitting shout first** (menu → Quit shout,
+> **Upgrading from 1.0.0 specifically requires quitting Kyanth first** (menu → Quit Kyanth,
 > or the Quit button in either window). The handover runs in the process that receives the
 > click, and 1.0.0 predates that code. Every upgrade after this one is automatic.
 
@@ -281,35 +281,35 @@ you re-grant every time.)
 
 **Open at login** is on by default and registered the first time the app starts. Toggle
 it from the menu (**Open at Login**), or from `System Settings → General → Login Items`,
-where it appears as **shout**. Turning it off there is respected — the app won't re-enable
+where it appears as **Kyanth**. Turning it off there is respected — the app won't re-enable
 itself on the next launch.
 
 **Remove:**
 
 ```bash
-rm -rf /Applications/shout.app
-rm -rf ~/Library/Application\ Support/shout    # also deletes history and settings
+rm -rf /Applications/Kyanth.app
+rm -rf ~/Library/Application\ Support/Kyanth    # also deletes history and settings
 ```
 
 Deleting the app also removes its login-item registration — macOS tracks it against the
-bundle rather than a separate file. Then remove the **shout** entries under
+bundle rather than a separate file. Then remove the **Kyanth** entries under
 `System Settings → Privacy & Security`.
 
 ---
 
 ## Troubleshooting
 
-**Clicking the app does nothing / no window.** shout is a menu-bar app — it has no
+**Clicking the app does nothing / no window.** Kyanth is a menu-bar app — it has no
 regular window, so opening it just places an icon in the menu bar. If your menu bar is
 full that icon is hidden and nothing appears to happen. Opening it again from Applications
 surfaces the Settings & History window, which is the reliable route in.
 
-**Two copies of shout in Applications or Spotlight.** Only `/Applications/shout.app` is
+**Two copies of Kyanth in Applications or Spotlight.** Only `/Applications/Kyanth.app` is
 real; the others are build artifacts under `dist/` that LaunchServices indexed. Clear them:
 
 ```bash
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
-  -u /path/to/repo/dist/shout.app
+  -u /path/to/repo/dist/Kyanth.app
 ```
 
 `dist/` is marked never-index so fresh builds no longer register themselves.
@@ -321,7 +321,7 @@ regardless.
 
 **Nothing happens when I press the key.** Open **Setup Check…** from the menu — it names
 the failing step directly. Failing that,
-`~/Library/Application Support/shout/logs/app.log` records permissions, input device and
+`~/Library/Application Support/Kyanth/logs/app.log` records permissions, input device and
 every capture; no `● recording` line means the hotkey isn't reaching the app.
 
 **A tap does nothing in hold mode.** Presses under 0.25 s are discarded. Hold longer, or
@@ -340,7 +340,7 @@ See `logs/server.log`.
 ```bash
 uv run bench.py            # WER + latency across models
 uv run make_icons.py       # regenerate app icon and menu-bar glyphs
-uv run pyinstaller shout.spec --noconfirm    # bundle only, no signing
+uv run pyinstaller kyanth.spec --noconfirm    # bundle only, no signing
 ./vendor_whisper.sh vendor models/ggml-base.en.bin   # vendor + verify standalone
 ```
 
@@ -350,7 +350,7 @@ See [Building from source](#building-from-source) for the full release flow.
 
 | File | Role |
 |---|---|
-| `shout.py` | daemon: event tap, recorder, worker, paste |
+| `kyanth.py` | daemon: event tap, recorder, worker, paste |
 | `menubar.py` | menu-bar app: server lifecycle, state, history |
 | `hotkey.py` | binding representation, matching, chord recorder |
 | `settings_ui.py` | Cocoa settings window: five panes behind a source list |
@@ -365,7 +365,7 @@ See [Building from source](#building-from-source) for the full release flow.
 | `config.py` · `config.yaml` | configuration |
 | `bench.py` · `make_icons.py` | model comparison, icon generation |
 | `paths.py` | bundle-vs-user-data path resolution |
-| `build_release.sh` · `shout.spec` · `entitlements.plist` | signed release build |
+| `build_release.sh` · `kyanth.spec` · `entitlements.plist` | signed release build |
 | `vendor_whisper.sh` | vendors whisper-server + dylib closure |
 | `install.sh` · `uninstall.sh` · `build_app.sh` | legacy source install (pre-DMG) |
 | `run.sh` · `serve.sh` | development entry points |
@@ -428,17 +428,17 @@ behavior that would cost the next person the same time it cost me.
 
 ### Packaging notes
 
-**Permissions showed "Python 3.14", not "shout".** The bundle's executable was a shell
+**Permissions showed "Python 3.14", not "Kyanth".** The bundle's executable was a shell
 script that `exec`'d the framework Python. `exec` *replaces* the process, so the running
 process literally was `/opt/homebrew/.../Python.app/Contents/MacOS/Python` — and TCC names
-entries by executable. Freezing with PyInstaller makes `Contents/MacOS/shout` a real
+entries by executable. Freezing with PyInstaller makes `Contents/MacOS/Kyanth` a real
 Mach-O binary that embeds libpython, so the process, the permission entry, and the icon
-are all shout's.
+are all Kyanth's.
 
 **A signed bundle is read-only.** The app wrote config, history, logs and cues next to its
 own code. Inside a signed `.app` that invalidates the signature and macOS refuses to
 launch. `paths.py` now separates read-only bundle resources from
-`~/Library/Application Support/shout`.
+`~/Library/Application Support/Kyanth`.
 
 **`install_name_tool` invalidates code signatures, and the failure is silent.** After
 rewriting a Mach-O's install names, macOS kills the process with SIGKILL and *no output
@@ -531,7 +531,7 @@ the grantee.
 Or run `uv run spike.py --request-access` to trigger the system dialog, which adds the
 correct app automatically.
 
-Note for Phase 4: once this is a bundled `.app`, the grant attaches to `shout.app` itself
+Note for Phase 4: once this is a bundled `.app`, the grant attaches to `Kyanth.app` itself
 and this dev-time indirection disappears.
 
 ---
@@ -609,13 +609,13 @@ grant and works fine; the same code in a bundle dies at interpreter startup:
 
 ```
 PermissionError: [Errno 1] Operation not permitted:
-  '/Users/…/Documents/code/shout/.venv/pyvenv.cfg'
+  '/Users/…/Documents/code/Kyanth/.venv/pyvenv.cfg'
 ```
 
-Verified with a throwaway probe app: `~/Documents/code/shout/config.yaml` → DENIED,
+Verified with a throwaway probe app: `~/Documents/code/Kyanth/config.yaml` → DENIED,
 `~/Library/Application Support` → READABLE.
 
-Hence `install.sh` stages a runtime into `~/Library/Application Support/shout` rather than
+Hence `install.sh` stages a runtime into `~/Library/Application Support/Kyanth` rather than
 running in place. This is also why `build_app.sh` takes the runtime prefix as a parameter.
 
 #### Finding 7 — a modal before `app.run()` hangs the app invisibly
@@ -631,7 +631,7 @@ own prompt, then polls every 2s — so granting takes effect without a relaunch.
 
 #### Finding 8 — launchd's PATH is not your PATH
 
-Testing `open -a shout.app` from a shell is misleading: the app inherits the shell's PATH.
+Testing `open -a Kyanth.app` from a shell is misleading: the app inherits the shell's PATH.
 At real login, launchd provides only `/usr/bin:/bin:/usr/sbin:/sbin`, so a bare
 `whisper-server` resolves during testing and silently fails after a reboot.
 `find_server_binary()` checks absolute Homebrew paths first. Verified under
@@ -651,7 +651,7 @@ and event tap. **Five had accumulated** before it was noticed, and inspecting "t
 meant inspecting whichever stale one `pgrep | head` happened to return.
 
 Two fixes: signal handlers and the Quit item now call `os._exit(0)` after cleanup, and
-`acquire_single_instance_lock()` takes an `flock` on `.shout.lock` at startup so a second
+`acquire_single_instance_lock()` takes an `flock` on `.kyanth.lock` at startup so a second
 launch exits immediately. This matters beyond development — launchd at login plus a manual
 `open -a` is exactly the same collision.
 
@@ -707,7 +707,7 @@ transcribes in full.
 The DMG was notarized and verified. Then it was rebuilt four times during unrelated work
 using plain `build_release.sh` — which signs but does *not* notarize — and each result was
 uploaded over the good asset with `gh release upload --clobber`. Users downloaded a
-signed-but-unnotarized build and got *"Apple could not verify shout is free of malware."*
+signed-but-unnotarized build and got *"Apple could not verify Kyanth is free of malware."*
 
 Nothing objected. The build printed one quiet line when `--notarize` was omitted, and the
 upload was a raw `gh` command with no idea what it was publishing.
@@ -726,13 +726,13 @@ than trusting that it still holds, is the only thing that works.
 
 The original Recorder opened the input device at launch and never closed it, to save ~110 ms
 of open latency per press. macOS shows its orange indicator for as long as a stream is open,
-so shout appeared to be listening every moment it ran — and functionally it was holding the
+so Kyanth appeared to be listening every moment it ran — and functionally it was holding the
 device. A user reported exactly that, and they were right to.
 
 Verified with screenshots: the indicator appears on `start()` and clears only on `close()`,
 not on `stop()`. The device is now opened on demand and released after an idle period.
 
-There is a neat property in the timing. Opening costs ~110 ms, and shout already discarded
+There is a neat property in the timing. Opening costs ~110 ms, and Kyanth already discarded
 110 ms of lead-in to keep the start cue out of the recording. On a cold open the cue has
 finished before capture begins, so the skip is applied only when the device was already warm.
 
@@ -865,7 +865,7 @@ the failure mode is indistinguishable from a working app.
 
 ### Installing over an existing bundle needs App Management, deleting it does not
 
-`ditto dist/shout.app /Applications/shout.app` over a bundle that already
+`ditto dist/Kyanth.app /Applications/Kyanth.app` over a bundle that already
 exists fails on every file with `Operation not permitted`. macOS App Management
 protects an installed app from being modified by another process unless the
 user has granted that process App Management rights — a terminal has not.
@@ -875,8 +875,8 @@ sequence is `rm -rf` then `ditto`. Which puts a loaded gun in the script:
 
 ```sh
 MNT=$(hdiutil attach x.dmg -nobrowse -quiet | ...)   # -quiet ate the output
-rm -rf /Applications/shout.app                        # ran anyway
-ditto "$MNT/shout.app" /Applications/shout.app        # source was ""
+rm -rf /Applications/Kyanth.app                        # ran anyway
+ditto "$MNT/Kyanth.app" /Applications/Kyanth.app        # source was ""
 ```
 
 `-quiet` suppresses the mount table that the pipeline was parsing, so `$MNT`
@@ -886,13 +886,13 @@ you can put back:
 
 ```sh
 [ -d "$SRC" ] && [ "$(plist_version "$SRC")" = "$EXPECTED" ] || exit 1
-ditto /Applications/shout.app /tmp/shout-backup.app
-rm -rf /Applications/shout.app
-ditto "$SRC" /Applications/shout.app || ditto /tmp/shout-backup.app /Applications/shout.app
+ditto /Applications/Kyanth.app /tmp/kyanth-backup.app
+rm -rf /Applications/Kyanth.app
+ditto "$SRC" /Applications/Kyanth.app || ditto /tmp/kyanth-backup.app /Applications/Kyanth.app
 ```
 
-A related trap: `ls -d /Volumes/shout*` picks the wrong volume when an earlier
-DMG is still attached, because the second mount becomes `/Volumes/shout 1`. It
+A related trap: `ls -d /Volumes/Kyanth*` picks the wrong volume when an earlier
+DMG is still attached, because the second mount becomes `/Volumes/Kyanth 1`. It
 will silently install the older app. `hdiutil info` lists what is attached;
 detach it first.
 
@@ -902,9 +902,9 @@ afterwards while TCC re-resolves.
 
 #### Why `open -a` and not the binary directly
 
-The LaunchAgent runs `/usr/bin/open -a shout.app` rather than the inner executable.
+The LaunchAgent runs `/usr/bin/open -a Kyanth.app` rather than the inner executable.
 Going through LaunchServices preserves the bundle identity that TCC keys permissions on;
-exec'ing `Contents/MacOS/shout` directly launches a bare process and loses the grant.
+exec'ing `Contents/MacOS/Kyanth` directly launches a bare process and loses the grant.
 
 `KeepAlive` is `false` deliberately — otherwise launchd relaunches the app every time you
 quit it from the menu.
@@ -1002,7 +1002,7 @@ whose `kCGKeyboardEventAutorepeat` field is set.
 
 #### Re-opening a running app sends a delegate message, not a new process
 
-Double-clicking shout in Applications does not start a second process — LaunchServices
+Double-clicking Kyanth in Applications does not start a second process — LaunchServices
 activates the existing one and sends `applicationShouldHandleReopen:hasVisibleWindows:`.
 rumps owns the `NSApplication` delegate, so the handler is grafted on with an
 `objc.Category` (whose class must be named exactly like the class it extends). The
