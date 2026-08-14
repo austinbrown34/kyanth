@@ -1,7 +1,13 @@
 # kyanth.com
 
-The landing page. Static HTML with inline CSS and one small script — no build
-step, no dependencies, no framework.
+The landing page. Static HTML with inline CSS and a little vanilla JS — no
+build step, no dependencies, no framework.
+
+One dark surface throughout, because the product is a midnight tile with an
+electric core and a white page fights it. The accent is rationed the way the
+app rations it (`DESIGN.md` §4.1, at most two visible uses of the peak colour
+per screen), so blue only ever means *this is the action* — the download
+button, the caret, and the meter's centre bar. Nothing decorative is blue.
 
 ## Deploying
 
@@ -18,6 +24,23 @@ anything is required.
 
 For GitHub Pages specifically, either publish this folder as the site source or
 copy its two entries to the branch Pages serves from.
+
+## The hero demo
+
+The hero animates the actual interaction rather than describing it: a menu bar,
+a document, and the overlay running through listening → transcribing → pasted
+while the sentence types itself in. It is drawn in markup — no video, no GIF,
+no screenshot — so it costs a few KB and stays sharp at any size.
+
+It pauses on `visibilitychange`. A background tab throttles `requestAnimationFrame`
+but *not* `setTimeout`, so without that the loop would run on unseen and you
+would come back to it mid-sentence.
+
+Under `prefers-reduced-motion` it renders the finished state and stops, rather
+than animating. Note the failure mode this avoids: an entrance animation that
+starts at `opacity:0` with `fill-mode: both` leaves content permanently
+invisible if the animation never runs — which is exactly what happens in a
+headless browser, where the animation clock is paused for hidden pages.
 
 ## The download button
 

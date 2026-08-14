@@ -6,6 +6,7 @@
 <title>Kyanth — local push-to-talk dictation for macOS</title>
 <meta name="description" content="Hold a key, speak, release. Kyanth transcribes on your Mac in about 200ms and pastes into whatever app you are using. No account, no subscription, no audio leaving your machine.">
 <link rel="icon" href="assets/icon-128.png" type="image/png">
+<meta name="theme-color" content="#0e1119">
 
 <meta property="og:type" content="website">
 <meta property="og:title" content="Kyanth — local push-to-talk dictation for macOS">
@@ -14,225 +15,365 @@
 <meta name="twitter:card" content="summary_large_image">
 
 <style>
-/* Palette lifted from the app's own design tokens, so the site and the
-   product are demonstrably the same object. */
+/* ===========================================================================
+   Kyanth — one dark surface, because the product is a midnight tile with an
+   electric core and a white page fights it.
+
+   The accent is rationed the way the app rations it (DESIGN.md §4.1): at most
+   two visible uses of the peak colour per screen. Everything that used to be
+   blue for decoration — eyebrows, inline code, quote rules, hover borders — is
+   neutral here, so blue only ever means "this is the action".
+   =========================================================================== */
 :root{
-  --band:linear-gradient(152deg,#414a5e 0%,#262c3a 54%,#171b24 100%);
-  --ink:#14171f; --fg:#1b1b1f; --muted:#6b6b75; --line:rgba(0,0,0,.10);
-  --surface:#fff; --alt:#f6f7f9;
-  --peak:#0a6cf5; --peak-soft:#7db6ff; --silver:#dfe4ee;
-  --band-fg:#eef1f7; --band-muted:rgba(238,241,247,.62);
+  --bg:#0e1119;
+  --raise:#151a24;
+  --line:rgba(255,255,255,.085);
+  --line-2:rgba(255,255,255,.14);
+  --fg:#e9ecf3;
+  --dim:#a2aab9;
+  --faint:#6d7585;
+  --peak:#3d8bff;
+  --peak-deep:#0a6cf5;
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,system-ui,sans-serif;
   --display:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,system-ui,sans-serif;
   --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
-  --wrap:1080px;
+  --wrap:1120px;
 }
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;font-family:var(--font);color:var(--fg);background:var(--surface);
-     -webkit-font-smoothing:antialiased;line-height:1.6;font-size:17px}
+html{scroll-behavior:smooth;background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);
+     font-size:17px;line-height:1.62;-webkit-font-smoothing:antialiased}
 img{max-width:100%;height:auto;display:block}
-a{color:var(--peak);text-decoration:none}
-a:hover{text-decoration:underline}
-.wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 26px}
+::selection{background:rgba(61,139,255,.28)}
+:focus-visible{outline:2px solid var(--peak);outline-offset:3px;border-radius:8px}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
+                        transition-duration:.001ms!important}
+}
 
-/* ---------------------------------------------------------------- hero */
-.hero{background:var(--band);color:var(--band-fg);position:relative;overflow:hidden}
-.hero::after{content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,0) 46%)}
-.hero>*{position:relative;z-index:1}
-.nav{display:flex;align-items:center;gap:12px;padding:22px 0}
-.nav .mark{display:flex;align-items:flex-end;gap:4px;height:22px}
-.nav .mark i{display:block;width:5px;border-radius:3px;background:linear-gradient(180deg,#fff,#cfd6e4)}
-.nav .mark i:nth-child(1){height:12px}
-.nav .mark i:nth-child(2){height:22px;background:linear-gradient(180deg,var(--peak-soft),var(--peak))}
-.nav .mark i:nth-child(3){height:16px}
-.nav .name{font-family:var(--display);font-weight:600;font-size:17px;letter-spacing:-.02em}
+/* ------------------------------------------------------------------- nav
+   Transparent at rest. It only earns a background once you have scrolled
+   past the hero — a bar that is visible at scroll 0 is a bar drawn on top
+   of the design rather than part of it. */
+.site-nav{position:fixed;top:0;left:0;right:0;z-index:60;
+  transition:background .25s,border-color .25s;
+  border-bottom:1px solid transparent}
+.site-nav.stuck{background:rgba(14,17,25,.78);border-bottom-color:var(--line);
+  backdrop-filter:saturate(150%) blur(16px);-webkit-backdrop-filter:saturate(150%) blur(16px)}
+.nav{display:flex;align-items:center;gap:26px;padding:17px 0}
+.mark{display:flex;align-items:center;gap:3.5px;height:19px;flex:none}
+.mark i{display:block;width:4.5px;border-radius:3px;background:#e8ebf2}
+.mark i:nth-child(1){height:10.4px}
+.mark i:nth-child(2){height:19px;background:linear-gradient(180deg,#7db6ff,var(--peak-deep))}
+.mark i:nth-child(3){height:14.1px}
+.nav .name{font-family:var(--display);font-weight:600;font-size:16.5px;letter-spacing:-.02em}
 .nav .spacer{flex:1}
-.nav a{color:var(--band-muted);font-size:14.5px}
-.nav a:hover{color:var(--band-fg);text-decoration:none}
+.nav a.lnk{color:var(--dim);font-size:14.5px;transition:color .15s}
+.nav a.lnk:hover{color:var(--fg)}
+@media (max-width:620px){.nav a.lnk{display:none}}
 
-.hero-in{padding:48px 0 76px;display:grid;grid-template-columns:1.15fr .85fr;
-         gap:52px;align-items:center}
-h1{font-family:var(--display);font-size:clamp(38px,5.4vw,60px);line-height:1.06;
-   letter-spacing:-.032em;font-weight:600;margin:0 0 20px}
-.lede{font-size:19px;color:var(--band-muted);margin:0 0 32px;max-width:33em}
-.lede b{color:var(--band-fg);font-weight:550}
+/* ------------------------------------------------------------------ hero */
+.hero{position:relative;overflow:hidden;padding:132px 0 84px}
+.hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 70% at 50% -12%,rgba(61,139,255,.13),transparent 62%)}
+.hero>*{position:relative;z-index:1}
+.hero-in{display:grid;grid-template-columns:1.02fr .98fr;gap:56px;align-items:center}
+h1{font-family:var(--display);font-size:clamp(40px,5.2vw,60px);line-height:1.04;
+   letter-spacing:-.034em;font-weight:600;margin:0 0 22px}
+h1 em{font-style:normal;color:var(--dim)}
+.lede{font-size:18.5px;color:var(--dim);margin:0 0 30px;max-width:31em}
+.lede b{color:var(--fg);font-weight:550}
 
 .cta{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
-.btn{display:inline-flex;align-items:center;gap:9px;padding:14px 24px;border-radius:9px;
-     font-weight:550;font-size:16px;border:1px solid transparent;transition:.15s}
-.btn:hover{text-decoration:none;transform:translateY(-1px)}
-.btn-primary{background:var(--peak);color:#fff;box-shadow:0 6px 22px rgba(10,108,245,.34)}
-.btn-primary:hover{background:#2a7ff7}
-.btn-ghost{border-color:rgba(255,255,255,.26);color:var(--band-fg)}
-.btn-ghost:hover{background:rgba(255,255,255,.09)}
-.meta{margin-top:18px;font-size:13.5px;color:rgba(238,241,247,.5)}
+.btn{display:inline-flex;align-items:center;gap:9px;padding:14px 24px;border-radius:10px;
+     font-weight:550;font-size:16px;border:1px solid transparent;transition:.16s;cursor:pointer}
+.btn-primary{background:linear-gradient(180deg,#4b95ff,var(--peak-deep));color:#fff;
+  box-shadow:0 8px 26px rgba(10,108,245,.36)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 12px 32px rgba(10,108,245,.46)}
+.btn-quiet{border-color:var(--line-2);color:var(--fg)}
+.btn-quiet:hover{background:rgba(255,255,255,.055);transform:translateY(-1px)}
+.meta{margin-top:18px;font-size:13.5px;color:var(--faint)}
 .meta span{white-space:nowrap}
-.hero-art{display:flex;justify-content:center}
-.hero-art img{width:min(300px,74%);filter:drop-shadow(0 26px 54px rgba(0,0,0,.5))}
 
-/* ------------------------------------------------------------- sections */
-section{padding:68px 0}
-.alt{background:var(--alt);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.eyebrow{font-size:12px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;
-         color:var(--peak);margin:0 0 14px}
-h2{font-family:var(--display);font-size:clamp(28px,3.4vw,38px);line-height:1.15;
-   letter-spacing:-.024em;font-weight:600;margin:0 0 16px}
-.sub{font-size:18px;color:var(--muted);max-width:34em;margin:0 0 30px}
+/* --------------------------------------------------------------- the demo
+   The hero shows the product working rather than describing it: a menu bar,
+   a document, and the overlay doing what it does. Everything is drawn — no
+   video, no screenshot, a few KB of markup. */
+.demo{position:relative;width:100%;max-width:520px;margin-inline:auto;padding-top:52px}
+.menubar{display:flex;align-items:center;gap:16px;justify-content:flex-end;
+  padding:0 14px;height:26px;border-radius:9px 9px 0 0;
+  background:rgba(255,255,255,.055);border:1px solid var(--line);border-bottom:0}
+.menubar .mb-mark{display:flex;align-items:center;gap:2.5px;height:12px;opacity:.92}
+.menubar .mb-mark i{display:block;width:3px;border-radius:2px;background:#dfe4ee;transition:background .2s}
+.menubar .mb-mark i:nth-child(1){height:6.6px}
+.menubar .mb-mark i:nth-child(2){height:12px}
+.menubar .mb-mark i:nth-child(3){height:9px}
+.demo.listening .menubar .mb-mark i:nth-child(2){background:#ff5f52}
+.menubar .mb-dot{width:11px;height:11px;border-radius:3px;background:rgba(255,255,255,.22)}
+.menubar .mb-time{font-size:11px;color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums}
 
-.pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:30px}
-.pillar h3{font-family:var(--display);font-size:19px;font-weight:600;margin:0 0 8px;
-           letter-spacing:-.015em}
-.pillar p{margin:0;color:var(--muted);font-size:15.5px}
-.pillar .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
-            background:rgba(10,108,245,.10);margin-bottom:14px;font-size:17px}
+.doc{border:1px solid var(--line);border-radius:0 0 13px 13px;background:#12161f;
+  box-shadow:0 30px 70px rgba(0,0,0,.55);overflow:hidden}
+.doc-bar{display:flex;align-items:center;gap:7px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.doc-bar .tl{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.16)}
+.doc-bar .ttl{margin-left:8px;font-size:12px;color:var(--faint)}
+.doc-body{padding:20px 20px 26px;min-height:136px;font-size:15.5px;line-height:1.6}
+.doc-body .said{color:var(--fg)}
+.caret{display:inline-block;width:1.5px;height:1.05em;background:var(--peak);
+  vertical-align:-2px;margin-left:1px;animation:blink 1.05s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.hint{color:var(--faint);font-size:13.5px;margin-top:15px;text-align:center}
+.hint kbd{font-family:var(--font);font-size:12px;background:rgba(255,255,255,.07);
+  border:1px solid var(--line-2);border-bottom-width:2px;border-radius:6px;
+  padding:2px 7px;color:var(--dim)}
 
-/* shots */
-.shot{display:grid;grid-template-columns:.9fr 1.1fr;gap:46px;align-items:center;
-      padding:38px 0;border-top:1px solid var(--line)}
-.shot:first-of-type{border-top:0}
+/* the overlay pill, rebuilt in markup so it can actually animate */
+.pill{position:absolute;left:50%;top:4px;transform:translate(-50%,-6px);z-index:2;
+  display:inline-flex;align-items:center;gap:11px;padding:9px 17px 9px 13px;border-radius:19px;
+  background:rgba(38,44,58,.95);border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 14px 34px rgba(0,0,0,.5);
+  font-size:14px;font-weight:550;white-space:nowrap;
+  opacity:0;transition:opacity .22s,transform .22s;pointer-events:none}
+.demo.on .pill{opacity:1;transform:translate(-50%,0)}
+.meter{display:flex;align-items:center;gap:3.5px;height:17px;flex:none}
+.meter i{display:block;width:4px;border-radius:2.5px;background:#cfd6e4;height:38%}
+.meter i:nth-child(2){background:var(--peak)}
+.demo.listening .meter i{animation:vu .9s ease-in-out infinite}
+.demo.listening .meter i:nth-child(1){animation-delay:-.62s}
+.demo.listening .meter i:nth-child(2){animation-delay:-.31s}
+.demo.listening .meter i:nth-child(3){animation-delay:-.12s}
+@keyframes vu{0%,100%{height:30%}50%{height:92%}}
+.demo.working .meter i{height:26%}
+.demo.working .meter i:nth-child(2){background:#f0a52a}
+
+/* ------------------------------------------------------------- structure */
+section{padding:92px 0;position:relative}
+.rule{border-top:1px solid var(--line)}
+.eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;
+         color:var(--faint);margin:0 0 15px}
+h2{font-family:var(--display);font-size:clamp(27px,3.1vw,35px);line-height:1.16;
+   letter-spacing:-.026em;font-weight:600;margin:0 0 15px;max-width:19ch}
+h2.wide{max-width:26ch}
+.sub{font-size:17.5px;color:var(--dim);max-width:33em;margin:0 0 42px}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.stat{background:var(--raise);padding:24px 22px}
+.stat b{display:block;font-family:var(--display);font-size:27px;font-weight:600;
+  letter-spacing:-.03em;line-height:1.1}
+.stat span{display:block;color:var(--faint);font-size:13px;margin-top:5px}
+
+/* pillars */
+.pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.pillar{background:var(--raise);border:1px solid var(--line);border-radius:15px;padding:26px 24px;
+  transition:border-color .18s,transform .18s}
+.pillar:hover{border-color:var(--line-2);transform:translateY(-2px)}
+.pillar .n{font-family:var(--mono);font-size:12px;color:var(--faint);margin-bottom:14px}
+.pillar h3{font-family:var(--display);font-size:18.5px;font-weight:600;letter-spacing:-.016em;margin:0 0 8px}
+.pillar p{margin:0;color:var(--dim);font-size:15.5px}
+
+/* shots — copy top-aligned so a portrait screenshot cannot strand it, and no
+   CSS border: these PNGs carry their own window chrome and a transparent
+   margin, so a border would outline empty space rather than the window. */
+.shot{display:grid;grid-template-columns:.86fr 1.14fr;gap:52px;align-items:start;padding:44px 0}
+.shot+.shot{border-top:1px solid var(--line)}
 .shot.flip .copy{order:2}
-.shot h3{font-family:var(--display);font-size:24px;font-weight:600;letter-spacing:-.02em;margin:0 0 12px}
-.shot p{color:var(--muted);margin:0 0 10px;font-size:16px}
-.shot img{border-radius:11px;box-shadow:0 18px 50px rgba(16,20,32,.20)}
-.shot .plain{box-shadow:none;border-radius:0;margin:0 auto;width:min(330px,88%)}
+.shot h3{font-family:var(--display);font-size:23px;font-weight:600;letter-spacing:-.022em;margin:0 0 12px}
+.shot p{color:var(--dim);margin:0 0 11px;font-size:16px}
+.shot p b{color:var(--fg);font-weight:550}
+.shot figure{margin:0}
+.shot img{border-radius:10px;filter:drop-shadow(0 24px 54px rgba(0,0,0,.55))}
+.shot .bare{filter:none;width:min(320px,86%);margin-inline:auto}
 
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--line);
-      border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.cell{background:var(--surface);padding:26px 24px}
-.cell h4{font-size:16px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em}
-.cell p{margin:0;color:var(--muted);font-size:14.5px}
+/* comparison */
+.vs{border:1px solid var(--line);border-radius:15px;overflow:hidden;background:var(--raise)}
+.vs table{width:100%;border-collapse:collapse;font-size:15.5px}
+.vs th,.vs td{padding:15px 20px;text-align:left;border-bottom:1px solid var(--line)}
+.vs thead th{font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);
+  font-weight:600;background:rgba(255,255,255,.025)}
+.vs tbody th{font-weight:450;color:var(--dim)}
+.vs td{color:var(--fg);font-weight:550;width:26%}
+.vs td.them{color:var(--faint);font-weight:400}
+.vs .foot{font-size:13.5px;color:var(--faint);padding:14px 20px;margin:0;
+  background:rgba(255,255,255,.02);border-top:1px solid var(--line)}
 
-.quote{border-left:3px solid var(--peak);padding:4px 0 4px 22px;margin:34px 0 0;
-       font-size:17px;color:var(--fg);max-width:40em}
-kbd{font-family:var(--mono);font-size:.86em;background:#fff;border:1px solid rgba(0,0,0,.16);
-    border-bottom-width:2px;border-radius:5px;padding:2px 7px;color:var(--fg)}
+/* privacy grid */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:15px;overflow:hidden}
+.cell{background:var(--raise);padding:26px 24px}
+.cell h4{font-size:16px;font-weight:600;margin:0 0 7px;letter-spacing:-.012em}
+.cell p{margin:0;color:var(--dim);font-size:14.5px}
+code{font-family:var(--mono);font-size:.88em;color:var(--dim);
+  background:rgba(255,255,255,.06);padding:1px 6px;border-radius:5px}
 
-/* final cta */
-.close{background:var(--band);color:var(--band-fg);text-align:center;position:relative;overflow:hidden}
-.close::after{content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,0) 50%)}
-.close>*{position:relative;z-index:1}
-.close h2{margin-bottom:14px}
-.close .sub{color:var(--band-muted);margin:0 auto 32px}
+/* close + footer */
+.close{text-align:center;background:
+  radial-gradient(90% 130% at 50% 0%,rgba(61,139,255,.12),transparent 60%)}
+.close h2{margin:0 auto 15px}
+.close .sub{margin:0 auto 34px}
 .close .cta{justify-content:center}
-
-footer{background:var(--ink);color:rgba(238,241,247,.5);font-size:14px;padding:34px 0}
-footer .wrap{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
-footer a{color:rgba(238,241,247,.72)}
+footer{border-top:1px solid var(--line);padding:30px 0;font-size:14px;color:var(--faint)}
+footer .wrap{display:flex;flex-wrap:wrap;gap:18px;align-items:center}
+footer a{color:var(--dim)}
+footer a:hover{color:var(--fg)}
 footer .spacer{flex:1}
 
-@media (max-width:860px){
-  .hero-in{grid-template-columns:1fr;gap:36px;padding:36px 0 64px}
-  .hero-art{order:-1}
-  .hero-art img{width:170px}
+@media (max-width:900px){
+  .hero{padding:104px 0 62px}
+  .hero-in{grid-template-columns:1fr;gap:46px}
+  .stats{grid-template-columns:repeat(2,1fr)}
   .pillars,.grid{grid-template-columns:1fr}
-  .shot{grid-template-columns:1fr;gap:26px;padding:40px 0}
+  .shot{grid-template-columns:1fr;gap:26px;padding:36px 0}
   .shot.flip .copy{order:0}
-  section{padding:52px 0}
+  section{padding:64px 0}
+  .vs td{width:auto}
+  .vs th,.vs td{padding:13px 15px}
 }
 </style>
 </head>
 <body>
 
-<header class="hero">
+<div class="site-nav" id="nav">
   <div class="wrap">
     <nav class="nav">
       <span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>
       <span class="name">Kyanth</span>
       <span class="spacer"></span>
-      <a href="#how">How it works</a>
-      <a href="#privacy">Privacy</a>
-      <a href="https://github.com/austinbrown34/kyanth">GitHub</a>
+      <a class="lnk" href="#speed">Speed</a>
+      <a class="lnk" href="#compare">Compare</a>
+      <a class="lnk" href="#privacy">Privacy</a>
+      <a class="lnk" href="https://github.com/austinbrown34/kyanth">GitHub</a>
     </nav>
+  </div>
+</div>
 
+<header class="hero">
+  <div class="wrap">
     <div class="hero-in">
       <div>
-        <h1>Hold a key. Speak.<br>The words are already typed.</h1>
-        <p class="lede">Kyanth is push-to-talk dictation for macOS that runs
-          <b>entirely on your Mac</b>. Release the key and the text lands in
-          whatever app you are using — in about 200 milliseconds. No account,
-          no subscription, and your audio never leaves the machine.</p>
+        <h1>Hold a key. Speak.<br><em>The words are already typed.</em></h1>
+        <p class="lede">Push-to-talk dictation for macOS that runs <b>entirely on your
+          Mac</b>. Release the key and the text lands in whatever app you were already
+          typing in — in about 200&nbsp;milliseconds.</p>
 
         <div class="cta">
           <a class="btn btn-primary" id="dl"
              href="https://github.com/austinbrown34/kyanth/releases/latest">
-            <svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-              <path d="M8 1v8.6M8 10.5 4.6 7.1M8 10.5l3.4-3.4" stroke="currentColor"
-                    stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M2 11.6V13a1.4 1.4 0 0 0 1.4 1.4h9.2A1.4 1.4 0 0 0 14 13v-1.4"
-                    stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 1.6v8.2M8 10.4 4.8 7.2M8 10.4l3.2-3.2M2.4 11.8v1.1a1.5 1.5 0 0 0 1.5 1.5h8.2a1.5 1.5 0 0 0 1.5-1.5v-1.1"
+                    stroke="currentColor" stroke-width="1.7" fill="none"
+                    stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <span id="dlLabel">Download for macOS</span>
           </a>
-          <a class="btn btn-ghost" href="https://github.com/austinbrown34/kyanth">View source</a>
+          <a class="btn btn-quiet" href="https://github.com/austinbrown34/kyanth">View source</a>
         </div>
 
         <p class="meta">
-          <span>macOS 13+</span> · <span>Apple Silicon</span> ·
-          <span>Free &amp; open source</span> · <span id="ver">Signed and notarized</span>
+          <span>Free forever</span> · <span>No account</span> ·
+          <span>macOS 13+</span> · <span id="ver">Signed &amp; notarized</span>
         </p>
       </div>
 
-      <div class="hero-art">
-        <img src="assets/icon-512.png" alt="The Kyanth app icon: three vertical bars, the middle one taller and electric blue, on a dark navy tile.">
+      <div>
+        <div class="demo" id="demo">
+          <div class="pill">
+            <span class="meter" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span id="pillText">Listening</span>
+          </div>
+
+          <div class="menubar" aria-hidden="true">
+            <span class="mb-mark"><i></i><i></i><i></i></span>
+            <span class="mb-dot"></span><span class="mb-dot"></span>
+            <span class="mb-time">9:41</span>
+          </div>
+
+          <div class="doc">
+            <div class="doc-bar" aria-hidden="true">
+              <span class="tl"></span><span class="tl"></span><span class="tl"></span>
+              <span class="ttl">Notes — Release plan</span>
+            </div>
+            <div class="doc-body"><span class="said" id="said"></span><span class="caret"></span></div>
+          </div>
+        </div>
+        <p class="hint"><kbd>Right ⌥</kbd> held — Kyanth listens from the menu bar</p>
       </div>
     </div>
   </div>
 </header>
 
-<section id="how">
+<section class="rule" id="speed">
+  <div class="wrap">
+    <p class="eyebrow">Measured, not claimed</p>
+    <h2 class="wide">Fast enough that you stop thinking about it</h2>
+    <p class="sub"><code>ggml-base.en</code> on an M1 Max, key release to text on screen.
+      Run <code>bench.py</code> against your own voice and check.</p>
+
+    <div class="stats">
+      <div class="stat"><b>149 ms</b><span>1-second utterance</span></div>
+      <div class="stat"><b>208 ms</b><span>3-second utterance</span></div>
+      <div class="stat"><b>3.5%</b><span>word error rate</span></div>
+      <div class="stat"><b>0</b><span>bytes leaving your Mac</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
   <div class="wrap">
     <p class="eyebrow">How it works</p>
     <h2>Three keys, and nothing to learn</h2>
-    <p class="sub">Kyanth lives in the menu bar. There is no window to switch to,
-      no button to find, and nothing to copy and paste.</p>
+    <p class="sub">Kyanth lives in the menu bar. There is no window to switch to, no
+      button to find, and nothing to copy and paste.</p>
 
     <div class="pillars">
       <div class="pillar">
-        <div class="ic">⌥</div>
+        <div class="n">01</div>
         <h3>Hold your shortcut</h3>
-        <p>Any key or chord you like. Modifier-only combinations such as
-          <kbd>Right ⌥</kbd> work best — they cannot be typed, so binding one
-          steals nothing from other apps.</p>
+        <p>Any key or chord. Modifier-only combinations work best — they cannot be
+          typed, so binding one steals nothing from other apps.</p>
       </div>
       <div class="pillar">
-        <div class="ic">◍</div>
+        <div class="n">02</div>
         <h3>Say what you mean</h3>
-        <p>A small pill appears and shows your live input level, so a microphone
-          that is hearing nothing looks obviously different from one that works.</p>
+        <p>A pill appears showing your live input level, so a microphone that is
+          hearing nothing looks obviously different from one that works.</p>
       </div>
       <div class="pillar">
-        <div class="ic">↵</div>
+        <div class="n">03</div>
         <h3>Release</h3>
-        <p>The text is pasted into the focused field and your previous clipboard
-          is put back. Typically 200 ms from key-up to text on screen.</p>
+        <p>The text is pasted where your cursor already was, and your previous
+          clipboard is put back exactly as it was.</p>
       </div>
     </div>
   </div>
 </section>
 
-<section class="alt">
+<section class="rule" id="compare">
   <div class="wrap">
-    <p class="eyebrow">On screen</p>
-    <h2>It always tells you what happened</h2>
-    <p class="sub">Silence is the worst failure mode a dictation tool can have.
-      Every outcome says so in words — including the ones that went wrong.</p>
+    <p class="eyebrow">Compare</p>
+    <h2 class="wide">The same job, without the subscription</h2>
+    <p class="sub">Most dictation apps are a thin client over somebody else's speech
+      API. That is the difference that matters, and it is not a feature list.</p>
 
-    <div class="shot">
-      <div class="copy">
-        <h3>Six states, six sentences</h3>
-        <p>Listening, transcribing, pasted, copied to the clipboard, nothing
-          heard, something went wrong. You never have to guess which one you got.</p>
-        <p>The three bars are the input meter. The centre bar carries your live
-          level and the outer two replay it a few frames later, so a syllable
-          travels outward across the mark.</p>
-        <p>It floats above other windows without ever taking focus — a dictation
-          overlay that stole focus would redirect your speech into itself.</p>
-      </div>
-      <img class="plain" src="assets/overlay-states.png"
-           alt="Four states of the Kyanth overlay pill: Listening, Transcribing, Pasted into Mail, and Copied — press Command V.">
+    <div class="vs">
+      <table>
+        <thead>
+          <tr><th scope="col">&nbsp;</th><th scope="col">Kyanth</th><th scope="col">Cloud dictation</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Price</th><td>Free, forever</td><td class="them">$10–15 / month</td></tr>
+          <tr><th scope="row">Account required</th><td>None</td><td class="them">Sign-up, email, billing</td></tr>
+          <tr><th scope="row">Works offline</th><td>Always</td><td class="them">No</td></tr>
+          <tr><th scope="row">Where your audio goes</th><td>Nowhere</td><td class="them">Their servers</td></tr>
+          <tr><th scope="row">Source code</th><td>Public</td><td class="them">Closed</td></tr>
+        </tbody>
+      </table>
+      <p class="foot">No competitor is named, because the point is structural rather than
+        competitive: a hosted API cannot be private, and a local model cannot bill you monthly.</p>
     </div>
   </div>
 </section>
@@ -240,90 +381,99 @@ footer .spacer{flex:1}
 <section>
   <div class="wrap">
     <p class="eyebrow">The app</p>
-    <h2>Built like a Mac app, not a wrapper</h2>
-    <p class="sub">Hand-drawn AppKit, two appearances, and a setup process that
-      refuses to call itself finished until it has proof.</p>
+    <h2 class="wide">Built like a Mac app, not a wrapper</h2>
+    <p class="sub">Hand-drawn AppKit, both appearances, and a setup process that refuses
+      to call itself finished until it has proof.</p>
 
     <div class="shot">
       <div class="copy">
-        <h3>Setup that verifies itself</h3>
-        <p>Eight checks in three groups, re-evaluated every second — flip a switch
-          in System Settings and the row turns without a relaunch.</p>
-        <p>The last check is the one that matters: <b>Finish stays disabled until a
-          real dictation has produced real text.</b> Green permissions prove
-          configuration, not function.</p>
+        <h3>It always tells you what happened</h3>
+        <p>Silence is the worst failure a dictation tool can have. Six states, six
+          sentences — listening, transcribing, pasted, left on the clipboard, nothing
+          heard, something went wrong.</p>
+        <p>The three bars are the meter. The centre carries your live level and the
+          outer two replay it a few frames later, so a syllable travels outward.</p>
+        <p>It floats above other windows without ever taking focus. An overlay that
+          stole focus would redirect your speech into itself.</p>
       </div>
-      <img src="assets/ui-setup.png"
-           alt="The Kyanth setup window showing eight checks grouped under Permissions, Hardware and model, and Verification, with a progress ring.">
+      <figure><img class="bare" src="assets/overlay-states.png" loading="lazy"
+        alt="Four states of the Kyanth overlay: Listening, Transcribing, Pasted into Mail, and Copied — press Command V."></figure>
     </div>
 
     <div class="shot flip">
       <div class="copy">
-        <h3>Proof that it is hearing you</h3>
-        <p>Pick any shortcut. Modifiers are side-aware, so <kbd>Right ⌥</kbd> is not
-          <kbd>Left ⌥</kbd>, and chords commit when you let go rather than on the
-          first key down.</p>
-        <p>A live indicator lights the moment Kyanth receives exactly your chord.
-          It is the only way to tell a wrong shortcut apart from one another app
-          swallowed first.</p>
+        <h3>Setup that verifies itself</h3>
+        <p>Eight checks in three groups, re-evaluated every second — flip a switch in
+          System Settings and the row turns without a relaunch.</p>
+        <p>The last check is the one that matters: <b>Finish stays disabled until a real
+          dictation has produced real text.</b> Green permissions prove configuration,
+          not function.</p>
       </div>
-      <img src="assets/ui-shortcut.png"
-           alt="Kyanth Settings, Shortcut pane: activation mode, the bound key chord, and live indicators for keys and audio arriving.">
+      <figure><img src="assets/ui-setup.png" loading="lazy"
+        alt="The Kyanth setup window: eight checks grouped under Permissions, Hardware and model, and Verification, with a progress ring."></figure>
     </div>
 
     <div class="shot">
       <div class="copy">
-        <h3>Everything you have said, searchable</h3>
-        <p>Time, transcription, how long you spoke, where it landed and how long
-          the model took — as columns, not one crushed string.</p>
-        <p>Search filters as you type. Click any row to expand it in place, with
-          copy, paste-again and delete. Nothing truncates.</p>
-        <p>Stored as a plain JSONL file on your Mac that you can read or delete
-          at any time.</p>
+        <h3>Proof that it is hearing you</h3>
+        <p>Modifiers are side-aware, so <b>Right ⌥</b> is not <b>Left ⌥</b>, and chords
+          commit when you let go rather than on the first key down.</p>
+        <p>A live indicator lights the moment Kyanth receives exactly your chord — the
+          only way to tell a wrong shortcut from one another app swallowed first.</p>
       </div>
-      <img src="assets/ui-history.png"
-           alt="Kyanth Settings, History pane: a sortable table of past dictations with time, text, duration, destination app and latency.">
+      <figure><img src="assets/ui-shortcut.png" loading="lazy"
+        alt="Kyanth Settings, Shortcut pane: activation mode, the bound chord, and live indicators for keys and audio arriving."></figure>
+    </div>
+
+    <div class="shot flip">
+      <div class="copy">
+        <h3>Everything you have said, searchable</h3>
+        <p>Time, transcription, how long you spoke, where it landed and how long the
+          model took — as columns, not one crushed string.</p>
+        <p>Search filters as you type. Click a row to expand it in place, with copy,
+          paste-again and delete. Nothing truncates.</p>
+        <p>Stored as a plain <code>.jsonl</code> file you can read or delete at any time.</p>
+      </div>
+      <figure><img src="assets/ui-history.png" loading="lazy"
+        alt="Kyanth Settings, History pane: a sortable table of past dictations with time, text, duration, destination app and latency."></figure>
     </div>
   </div>
 </section>
 
-<section class="alt" id="privacy">
+<section class="rule" id="privacy">
   <div class="wrap">
     <p class="eyebrow">Privacy</p>
-    <h2>Nothing leaves your Mac. Not by policy — by construction.</h2>
-    <p class="sub">There is no server to trust, because there is no server.
-      The speech model ships inside the app and runs on your own hardware.</p>
+    <h2 class="wide">Nothing leaves your Mac. Not by policy — by construction.</h2>
+    <p class="sub">There is no server to trust, because there is no server. The speech
+      model ships inside the app and runs on your own hardware.</p>
 
     <div class="grid">
       <div class="cell"><h4>No account</h4><p>Nothing to sign up for. Download it and it works.</p></div>
       <div class="cell"><h4>No network calls</h4><p>The only connection is to <code>127.0.0.1</code> — the transcription engine inside the app.</p></div>
       <div class="cell"><h4>No telemetry</h4><p>No analytics, no crash reporting, no phone-home.</p></div>
-      <div class="cell"><h4>The microphone is released</h4><p>The input device opens on your first press and closes after 30 seconds idle, so the macOS recording indicator is not on while you work.</p></div>
+      <div class="cell"><h4>The microphone is released</h4><p>The device opens on your first press and closes after 30 seconds idle, so the macOS recording indicator is not on while you work.</p></div>
       <div class="cell"><h4>Your history is a file</h4><p>Plain JSONL under Application Support, capped at 500 entries. Delete it whenever you like.</p></div>
-      <div class="cell"><h4>Signed and notarized</h4><p>A Developer ID build that opens with no Gatekeeper warning and keeps its permission grants across updates.</p></div>
+      <div class="cell"><h4>Signed and notarized</h4><p>A Developer ID build that opens with no Gatekeeper warning and keeps its grants across updates.</p></div>
     </div>
-
-    <p class="quote">Cloud dictation is a subscription, an account, and a copy of
-      everything you have ever said sitting on somebody else's disk. Kyanth is a
-      170&nbsp;MB app that does the same job with none of that.</p>
   </div>
 </section>
 
-<section class="close">
+<section class="close rule">
   <div class="wrap">
-    <h2>Try it on your own machine</h2>
-    <p class="sub">Free, open source, and self-contained — Python, the speech model
-      and the transcription engine all ship inside the app. No Homebrew, nothing to build.</p>
+    <h2 class="wide">Try it on your own machine</h2>
+    <p class="sub">Self-contained — Python, the speech model and the transcription
+      engine all ship inside the app. No Homebrew, nothing to build.</p>
     <div class="cta">
       <a class="btn btn-primary" id="dl2"
          href="https://github.com/austinbrown34/kyanth/releases/latest">Download for macOS</a>
-      <a class="btn btn-ghost" href="https://github.com/austinbrown34/kyanth">Read the source</a>
+      <a class="btn btn-quiet" href="https://github.com/austinbrown34/kyanth">Read the source</a>
     </div>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
+    <span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>
     <span>Kyanth — local push-to-talk dictation for macOS</span>
     <span class="spacer"></span>
     <a href="https://github.com/austinbrown34/kyanth">GitHub</a>
@@ -333,31 +483,91 @@ footer .spacer{flex:1}
 </footer>
 
 <script>
-/* Point the download buttons straight at the current DMG and show its version.
-   The buttons already link to the releases page, so if this fails — offline,
-   rate-limited, no JS — the page still works. */
+/* --- the nav earns its background only once you have left the hero ------ */
+(function () {
+  var nav = document.getElementById('nav');
+  function tick(){ nav.classList.toggle('stuck', window.scrollY > 24); }
+  addEventListener('scroll', tick, {passive:true}); tick();
+})();
+
+/* --- the hero demo -----------------------------------------------------
+   A loop of the actual interaction: hold, speak, release, text appears.
+   Under prefers-reduced-motion it renders the finished state instead of
+   animating, so the hero still reads as a product rather than a blank box. */
+(function () {
+  var demo = document.getElementById('demo'),
+      said = document.getElementById('said'),
+      pill = document.getElementById('pillText'),
+      LINE = 'Move the launch to Thursday so QA gets a full day with the signed build.';
+  if (!demo || !said || !pill) return;
+
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    said.textContent = LINE;
+    demo.className = 'demo on';
+    pill.textContent = 'Pasted into Notes';
+    return;
+  }
+
+  var timer = null;
+  function at(ms, fn){ return setTimeout(fn, ms); }
+  function set(){ demo.className = 'demo ' + [].join.call(arguments, ' '); }
+
+  function typeOut(text, done){
+    var i = 0;
+    (function step(){
+      said.textContent = text.slice(0, ++i);
+      timer = i < text.length ? at(16 + Math.random()*22, step) : at(2600, done);
+    })();
+  }
+
+  function cycle(){
+    said.textContent = ''; set();
+    timer = at(900, function(){
+      pill.textContent = 'Listening';     set('on','listening');
+      timer = at(2200, function(){
+        pill.textContent = 'Transcribing…'; set('on','working');
+        timer = at(620, function(){
+          pill.textContent = 'Pasted into Notes'; set('on','done');
+          typeOut(LINE, function(){
+            demo.classList.remove('on');
+            timer = at(700, cycle);
+          });
+        });
+      });
+    });
+  }
+  cycle();
+
+  /* A background tab pauses rAF but not setTimeout, so without this the loop
+     runs on unseen and comes back mid-sentence. */
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden) { clearTimeout(timer); }
+    else { clearTimeout(timer); cycle(); }
+  });
+})();
+
+/* --- point the download buttons at the current DMG ---------------------
+   The links already resolve to /releases/latest, so a failure here costs
+   nothing: you land on the releases page instead of starting a download. */
 (function () {
   fetch('https://api.github.com/repos/austinbrown34/kyanth/releases/latest',
-        {headers: {Accept: 'application/vnd.github+json'}})
-    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        {headers:{Accept:'application/vnd.github+json'}})
+    .then(function (r){ return r.ok ? r.json() : Promise.reject(r.status); })
     .then(function (rel) {
-      var dmg = (rel.assets || []).filter(function (a) {
-        return /\.dmg$/i.test(a.name);
-      })[0];
+      var dmg = (rel.assets||[]).filter(function(a){ return /\.dmg$/i.test(a.name); })[0];
       if (!dmg) return;
-      ['dl', 'dl2'].forEach(function (id) {
-        var el = document.getElementById(id);
-        if (el) el.href = dmg.browser_download_url;
+      ['dl','dl2'].forEach(function (id) {
+        var el = document.getElementById(id); if (el) el.href = dmg.browser_download_url;
       });
       var label = document.getElementById('dlLabel');
       if (label && rel.tag_name) label.textContent = 'Download ' + rel.tag_name + ' for macOS';
       var ver = document.getElementById('ver');
       if (ver) {
-        var mb = Math.round((dmg.size || 0) / 1048576);
-        ver.textContent = 'Signed and notarized' + (mb ? ' · ' + mb + ' MB' : '');
+        var mb = Math.round((dmg.size||0)/1048576);
+        ver.textContent = 'Signed & notarized' + (mb ? ' · ' + mb + ' MB' : '');
       }
     })
-    .catch(function () { /* links already resolve to the releases page */ });
+    .catch(function(){});
 })();
 </script>
 </body>
