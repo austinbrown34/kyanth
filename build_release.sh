@@ -18,16 +18,6 @@ APP="dist/Kyanth.app"
 DMG="dist/kyanth-$VERSION.dmg"
 IDENTITY="${KYANTH_IDENTITY:-Developer ID Application}"
 NOTARY_PROFILE="${KYANTH_NOTARY_PROFILE:-kyanth-notary}"
-# The keychain profile predates the rename. Fall back rather than fail a build
-# on a name; create the new one with:
-#   xcrun notarytool store-credentials kyanth-notary --apple-id ... --team-id ...
-if ! xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
-  if xcrun notarytool history --keychain-profile shout-notary >/dev/null 2>&1; then
-    echo "note: using legacy keychain profile 'shout-notary'" >&2
-    NOTARY_PROFILE="shout-notary"
-  fi
-fi
-
 NOTARIZE=0
 ADHOC=0
 for arg in "$@"; do
@@ -37,6 +27,16 @@ for arg in "$@"; do
     *) echo "unknown option: $arg" >&2; exit 1 ;;
   esac
 done
+
+# Check the credential before building rather than after: notarization is the
+# last step, so a bad profile otherwise wastes the whole build to find out.
+#   xcrun notarytool store-credentials kyanth-notary --apple-id ... --team-id ...
+if [ "$NOTARIZE" -eq 1 ] \
+   && ! xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
+  echo "keychain profile '$NOTARY_PROFILE' does not authenticate — fix it before building" >&2
+  echo "  xcrun notarytool store-credentials $NOTARY_PROFILE --apple-id <id> --team-id <team>" >&2
+  exit 1
+fi
 
 # ------------------------------------------------------------- 1. vendor
 echo "==> vendoring whisper-server"
