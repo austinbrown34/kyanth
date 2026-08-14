@@ -706,6 +706,38 @@ def bring_to_front(window, center=False):
         NSApplicationActivateIgnoringOtherApps | NSApplicationActivateAllWindows)
     NSApp.activateIgnoringOtherApps_(True)      # harmless, helps on older macOS
     if center:
-        window.center()
+        center_on_pointer(window)
     window.makeKeyAndOrderFront_(None)
     window.orderFrontRegardless()
+
+
+def center_on_pointer(window):
+    """Centre on the display the user is actually looking at.
+
+    NOT window.center(), which uses the main screen — and the main screen
+    follows keyboard focus, so on a multi-display setup the window opens on a
+    monitor nobody is watching and reads as "it never opened". The overlay
+    already learned this; the windows had not. The pointer is the best
+    available proxy for attention.
+    """
+    from AppKit import NSEvent, NSScreen
+
+    try:
+        point = NSEvent.mouseLocation()
+        target = None
+        for screen in NSScreen.screens():
+            f = screen.frame()
+            if (f.origin.x <= point.x < f.origin.x + f.size.width
+                    and f.origin.y <= point.y < f.origin.y + f.size.height):
+                target = screen
+                break
+        if target is None:
+            window.center()
+            return
+        visible = target.visibleFrame()
+        size = window.frame().size
+        window.setFrameOrigin_(NSMakePoint(
+            visible.origin.x + (visible.size.width - size.width) / 2.0,
+            visible.origin.y + (visible.size.height - size.height) / 2.0))
+    except Exception:
+        window.center()
