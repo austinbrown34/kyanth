@@ -92,6 +92,35 @@ class NSApp(objc.Category(rumps.rumps.NSApp)):
         return True
 
 
+class _LaunchProbe(NSObject):
+    """Records how this process was launched.
+
+    A menu-bar app with no Dock icon has one discoverable way to reach its UI —
+    clicking it in Applications — and when it is not already running that did
+    nothing visible at all. Opening the window on every cold start is wrong the
+    other way: the login item cold-starts too, and nobody wants Settings in
+    their face at every login.
+
+    LaunchServices distinguishes the two in the didFinishLaunching userInfo.
+    Both signals are logged because XPC_SERVICE_NAME looks like it should work
+    and does not — launchd names the service identically either way.
+    """
+
+    def initWithCallback_(self, cb):
+        self = objc.super(_LaunchProbe, self).init()
+        if self is None:
+            return None
+        self.cb = cb
+        return self
+
+    def handle_(self, note):
+        info = note.userInfo() or {}
+        flag = info.objectForKey_("NSApplicationLaunchIsDefaultLaunchKey")
+        print(f"[start] launch: default={flag!r} "
+              f"xpc={os.environ.get('XPC_SERVICE_NAME', '')!r}", flush=True)
+        self.cb(None if flag is None else bool(flag))
+
+
 class _NoteProxy(NSObject):
     """rumps.App is a plain Python class, so it cannot itself be an
     Objective-C notification observer. This forwards to a callable."""
@@ -187,6 +216,11 @@ class ShoutApp(rumps.App):
         self._warned_listen = False
         self._icon_state = None
         self._icon_dark = None       # skip redundant NSImage rebuilds
+        #  None until didFinishLaunching tells us. Unknown is treated as "not
+        #  a user launch": a Settings window nobody asked for at every login is
+        #  worse than one missing click.
+        self.user_launched = None
+        self._watch_launch()
         self._transcribe_timer = None
         self._transcribe_frame = 0
         self.mic_ok = False
@@ -340,7 +374,28 @@ class ShoutApp(rumps.App):
 
         print("[start] event tap installed — ready")
         self.set_state("idle")
+        self._surface_on_user_launch()
         return True
+
+    def _watch_launch(self):
+        from Foundation import NSNotificationCenter
+
+        def note(is_default):
+            self.user_launched = is_default
+
+        #  Held on self: the notification centre does not retain observers, and
+        #  a collected proxy stops delivering without saying so.
+        self._launch_probe = _LaunchProbe.alloc().initWithCallback_(note)
+        NSNotificationCenter.defaultCenter().addObserver_selector_name_object_(
+            self._launch_probe, "handle:",
+            "NSApplicationDidFinishLaunchingNotification", None)
+
+    def _surface_on_user_launch(self):
+        """A cold start the user asked for should land somewhere visible."""
+        if not self.user_launched:
+            return
+        print("[start] user launch — opening Settings", flush=True)
+        AppHelper.callAfter(self.on_settings)
 
     def _observe_show_settings(self):
         """Opening shout again from the Applications folder should surface
@@ -626,27 +681,36 @@ class ShoutApp(rumps.App):
             pass
 
     def on_result(self, text: str, secs: float, ms: float, where: str = "pasted"):
-        """Called from the worker thread. Only touches plain data here; the menu
-        rebuild is pushed to the main thread, because NSMenu — like all of
-        AppKit — must not be mutated from a background thread."""
-        self.store.add(history_mod.Entry(text, shout.frontmost_app(),
+        """Called from the worker thread. Plain data only.
+
+        Nothing here may reach AppKit. That was survivable when the overlay was
+        a fixed-size ripple, but the pill sizes itself to its message, so
+        setting its state moves a window — and AppKit traps on a window moved
+        off the main thread. It crashed the app after a dictation, which looks
+        exactly like "shout stopped working".
+        """
+        app_name = shout.frontmost_app()
+        self.store.add(history_mod.Entry(text, app_name,
                                          time.time(), ms, where, secs))
+        mark = " ⧉" if where == "clipboard" else ""
+        preview = text if len(text) <= 60 else text[:57] + "…"
+        self.history.appendleft(f"{preview}{mark}   ({ms:.0f}ms)")
+        setup = getattr(self, "setup", None)
+        if setup is not None:
+            setup.note_dictation()
+        AppHelper.callAfter(self._present_result, where, app_name)
+
+    def _present_result(self, where: str, app_name: str):
+        """Everything on_result deferred, on the main thread."""
         try:
             if where == "clipboard":
                 self.overlay.set_state(overlay_mod.CLIPBOARD)
             else:
                 self.overlay.set_state(overlay_mod.PASTED,
-                                       f"Pasted into {shout.frontmost_app()}")
+                                       f"Pasted into {app_name}")
         except Exception as exc:
             print(f"[overlay] outcome failed: {exc}", flush=True)
-
-        mark = " ⧉" if where == "clipboard" else ""
-        preview = text if len(text) <= 60 else text[:57] + "…"
-        self.history.appendleft(f"{preview}{mark}   ({ms:.0f}ms)")
-        AppHelper.callAfter(self._refresh_history)
-        setup = getattr(self, "setup", None)
-        if setup is not None:
-            setup.note_dictation()
+        self._refresh_history()
         if where == "clipboard":
             rumps.notification("shout", "Copied to clipboard",
                                "No text field was focused — press ⌘V to paste.")

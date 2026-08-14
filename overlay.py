@@ -16,6 +16,8 @@ never become key window.** shout pastes into whatever app is frontmost, so an
 overlay that took focus would redirect the user's dictation into itself.
 """
 
+import functools
+
 import objc
 from objc import python_method
 from AppKit import (
@@ -45,7 +47,8 @@ from AppKit import (
     NSWindowStyleMaskNonactivatingPanel,
     NSWorkspace,
 )
-from Foundation import NSObject, NSTimer
+from Foundation import NSObject, NSThread, NSTimer
+from PyObjCTools import AppHelper
 from Quartz import CAGradientLayer
 
 import tokens
@@ -219,6 +222,25 @@ class OverlayPanel(NSPanel):
         return False
 
 
+
+def _on_main(method):
+    """Bounce a call to the main thread if it arrived on another one.
+
+    The pill sizes itself to its message, so every state change moves a window
+    — and AppKit traps outright on a window moved off the main thread. The old
+    fixed-width ripple happened to survive being poked from the worker; this
+    one does not, so the overlay refuses to depend on its callers getting it
+    right.
+    """
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        if NSThread.isMainThread():
+            return method(self, *args, **kwargs)
+        AppHelper.callAfter(lambda: method(self, *args, **kwargs))
+        return None
+    return wrapper
+
+
 class Overlay(NSObject):
     """Owns the panel. Main-thread only."""
 
@@ -348,6 +370,7 @@ class Overlay(NSObject):
     # ------------------------------------------------------------- control
 
     @python_method
+    @_on_main
     def show(self, state: str = LISTENING, text: str | None = None):
         self._build()
         first = not self.visible
@@ -402,6 +425,7 @@ class Overlay(NSObject):
                     dwell, self, "dismiss:", None, False))
 
     @python_method
+    @_on_main
     def set_state(self, state: str, text: str | None = None):
         if not self.visible:
             self.show(state, text)
@@ -426,6 +450,7 @@ class Overlay(NSObject):
             self.dismiss_timer = None
 
     @python_method
+    @_on_main
     def hide(self):
         from Foundation import NSAnimationContext
 
