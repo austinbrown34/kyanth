@@ -67,6 +67,13 @@ class Vocabulary:
 #  fully-enclosed result is dropped; a genuine "(like this)" mid-sentence stays.
 _SOUND_DESCRIPTION = re.compile(r"^[\(\[\*].{0,60}[\)\]\*][.!?]?$")
 
+#  A bracketed group of at most three words, hugging the start or end of the
+#  line. Long enough to catch "(upbeat music playing)", short enough to leave
+#  ordinary parentheticals alone.
+_EDGE_SOUND = re.compile(
+    r"^\s*[\(\[]\s*\w+(?:[\s\-]+\w+){0,2}\s*[\)\]][\s,.:;-]*"
+    r"|[\s,.:;-]*[\(\[]\s*\w+(?:[\s\-]+\w+){0,2}\s*[\)\]]\s*$")
+
 
 def strip_noise(text: str) -> str:
     lines = [ln.strip() for ln in text.splitlines()]
@@ -78,6 +85,15 @@ def strip_noise(text: str) -> str:
 
     if _SOUND_DESCRIPTION.match(out):
         return ""
+
+    #  Whisper also prefixes or suffixes a description onto real speech:
+    #  "(applause) Verifying the ripple…". Only strip at the edges, and only
+    #  short ones, so a genuine mid-sentence "(the short one)" is untouched.
+    for _ in range(2):
+        stripped = _EDGE_SOUND.sub("", out).strip()
+        if stripped == out or not stripped:
+            break
+        out = stripped
     return out
 
 

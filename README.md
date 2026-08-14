@@ -145,6 +145,23 @@ cancels.
 typed on their own, so binding one steals nothing from other apps. A regular combination
 like ⇧⌘V is intercepted system-wide and will shadow whatever else uses it.
 
+### Listening indicator
+
+A pulsing ripple appears near the top of the screen while recording (red) and while
+transcribing (amber). Its centre scales with your live input level, so a microphone picking
+up nothing looks different from one that is working.
+
+It is a non-activating panel: it floats above other windows and across Spaces without ever
+taking focus. That is not cosmetic — shout pastes into whatever app is frontmost, so an
+overlay that became key window would redirect your dictation into itself.
+
+### Microphone use
+
+shout opens the input device on your first press and **releases it after 30 seconds idle**,
+so macOS shows its microphone indicator only while you are actually dictating. Consecutive
+dictations stay instant; the first press after a pause costs about 110 ms, which is
+absorbed by the start cue and the moment before you begin speaking.
+
 ### Sound cues
 
 The menu-bar icon is easily hidden (see [Troubleshooting](#troubleshooting)), so every state
@@ -680,6 +697,31 @@ real use.
 The general shape is the recurring one in this project: a property that was verified once
 and then silently invalidated by a later step. Checking it at the point of use, rather
 than trusting that it still holds, is the only thing that works.
+
+### Holding the microphone open is a privacy problem, not just a detail
+
+The original Recorder opened the input device at launch and never closed it, to save ~110 ms
+of open latency per press. macOS shows its orange indicator for as long as a stream is open,
+so shout appeared to be listening every moment it ran — and functionally it was holding the
+device. A user reported exactly that, and they were right to.
+
+Verified with screenshots: the indicator appears on `start()` and clears only on `close()`,
+not on `stop()`. The device is now opened on demand and released after an idle period.
+
+There is a neat property in the timing. Opening costs ~110 ms, and shout already discarded
+110 ms of lead-in to keep the start cue out of the recording. On a cold open the cue has
+finished before capture begins, so the skip is applied only when the device was already warm.
+
+### An overlay must never become key window, and must not trust mainScreen()
+
+`NSScreen.mainScreen()` follows keyboard focus, not the menu bar. On a five-display machine
+it returned a monitor the user was not looking at, and the indicator was placed at x=-1956 —
+drawn correctly, on a screen nobody was watching. It now positions on the display containing
+the pointer, falling back to the primary.
+
+Two things made this slow to find: a `try/except` around the overlay swallowed every error,
+and one attempt to verify it ran without a run loop, so nothing composited and the code
+looked broken when it was not.
 
 ### An upgrade only takes effect if the running process cooperates
 

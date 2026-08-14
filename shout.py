@@ -89,34 +89,123 @@ TOGGLE_DEBOUNCE_SEC = 0.40
 # ---------------------------------------------------------------- audio
 
 class Recorder:
-    """Continuous input stream, opened once. Starting a capture just flips a
-    flag — no device open on the hot path, which would cost ~100ms."""
+    """Opens the input device on demand and releases it when idle.
+
+    An earlier version opened the stream at launch and never closed it, to save
+    ~110ms of open latency per press. That was the wrong trade: macOS shows its
+    microphone-in-use indicator for as long as a stream is open, so shout
+    appeared to be listening every moment it ran. A user reported exactly that,
+    and they were right to.
+
+    The device is now opened on the first press and released after
+    IDLE_RELEASE_SECONDS of no use, so consecutive dictations stay instant while
+    an idle shout holds nothing. The open cost is largely hidden: it overlaps
+    the start cue and the user's own reaction time before speaking.
+    """
+
+    IDLE_RELEASE_SECONDS = 30.0
 
     def __init__(self, device=None, lead_skip_ms: int = 0):
         self._chunks: list[np.ndarray] = []
         self._active = False
         self._lock = threading.Lock()
-        #  Audio captured while the start cue is still sounding would be
-        #  transcribed as a chirp. Discard it; nobody starts speaking that fast.
+        self._device = device
+        self._stream = None
+        self._idle_timer = None
+        self._level = 0.0
+        #  Only meaningful when the stream was ALREADY open: a freshly opened
+        #  device misses the cue naturally, since opening it takes about as
+        #  long as the cue lasts.
         self._lead_skip = int(SAMPLE_RATE * lead_skip_ms / 1000)
-        self._stream = sd.InputStream(
-            samplerate=SAMPLE_RATE,
-            channels=1,
-            dtype="float32",
-            blocksize=1024,
-            device=device,
-            callback=self._on_audio,
-        )
-        self._stream.start()
+        self._skip_this_capture = 0
+
+    # ------------------------------------------------------------ device
+
+    def _open(self) -> bool:
+        if self._stream is not None:
+            return True
+        try:
+            self._stream = sd.InputStream(
+                samplerate=SAMPLE_RATE,
+                channels=1,
+                dtype="float32",
+                blocksize=1024,
+                device=self._device,
+                callback=self._on_audio,
+            )
+            self._stream.start()
+            return True
+        except Exception:
+            self._stream = None
+            raise
+
+    def _close(self):
+        stream, self._stream = self._stream, None
+        if stream is not None:
+            try:
+                stream.stop()
+                stream.close()      # close, not just stop: only this clears
+                                    # the macOS microphone indicator
+            except Exception:
+                pass
+
+    def _cancel_idle_timer(self):
+        if self._idle_timer is not None:
+            self._idle_timer.cancel()
+            self._idle_timer = None
+
+    def _schedule_release(self):
+        self._cancel_idle_timer()
+        self._idle_timer = threading.Timer(self.IDLE_RELEASE_SECONDS,
+                                           self._release_if_idle)
+        self._idle_timer.daemon = True
+        self._idle_timer.start()
+
+    def _release_if_idle(self):
+        with self._lock:
+            if self._active:
+                return               # a capture started while we waited
+            self._close()
+
+    def probe(self) -> bool:
+        """Open and immediately release, to prove the device works.
+
+        Setup needs to verify the microphone without leaving it held open.
+        """
+        with self._lock:
+            try:
+                self._open()
+            except Exception:
+                return False
+            self._close()
+            return True
+
+    # ----------------------------------------------------------- capture
 
     def _on_audio(self, indata, frames, time_info, status):
         with self._lock:
-            if self._active:
-                self._chunks.append(indata.copy())
+            if not self._active:
+                return
+            self._chunks.append(indata.copy())
+            peak = float(np.abs(indata).max()) if indata.size else 0.0
+            #  Smoothed so a UI reading this does not flicker.
+            self._level = max(peak, self._level * 0.8)
+
+    @property
+    def level(self) -> float:
+        return self._level
 
     def start(self):
+        self._cancel_idle_timer()
+        with self._lock:
+            was_open = self._stream is not None
+        self._open()                 # no-op when already open
         with self._lock:
             self._chunks = []
+            self._level = 0.0
+            #  Skip the cue only when the device was already running; a cold
+            #  open has already missed it.
+            self._skip_this_capture = self._lead_skip if was_open else 0
             self._active = True
 
     def stop(self) -> np.ndarray:
@@ -124,16 +213,20 @@ class Recorder:
             self._active = False
             chunks = self._chunks
             self._chunks = []
+            skip = self._skip_this_capture
+            self._level = 0.0
+        self._schedule_release()
         if not chunks:
             return np.zeros((0, 1), dtype="float32")
         audio = np.concatenate(chunks, axis=0)
-        if self._lead_skip and len(audio) > self._lead_skip * 2:
-            audio = audio[self._lead_skip:]
+        if skip and len(audio) > skip * 2:
+            audio = audio[skip:]
         return audio
 
     def close(self):
-        self._stream.stop()
-        self._stream.close()
+        self._cancel_idle_timer()
+        with self._lock:
+            self._close()
 
 
 def write_wav(audio: np.ndarray, path: Path) -> None:

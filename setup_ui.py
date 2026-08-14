@@ -13,9 +13,12 @@ and function is what the user actually wants confirmed.
 
 import subprocess
 
+import paths
+
 import objc
 from objc import python_method
 from AppKit import (
+    NSAlert,
     NSApp,
     NSBackingStoreBuffered,
     NSBezelStyleRounded,
@@ -33,7 +36,7 @@ from Foundation import NSObject, NSTimer
 #  Sized so all seven rows fit with room to spare. The first version used
 #  H=520 with ROW_H=74, which put row 7 at y=-36 — off-window — and overlapped
 #  every title with its own detail line.
-W, H = 580, 700
+W, H = 580, 764
 ROW_H = 66
 ROWS_TOP = H - 124
 
@@ -132,6 +135,14 @@ class SetupController(NSObject):
 
         def listen_act():
             import shout
+            #  Once denied, macOS never prompts again and the app may not even
+            #  appear in the list — leaving the user to hunt for the "+"
+            #  button. Clearing our own TCC entry (no sudo needed) makes the
+            #  system prompt fire again, which also adds us to the list.
+            if shout.input_monitoring_status() == 1:
+                subprocess.run(
+                    ["tccutil", "reset", "ListenEvent", paths.BUNDLE_ID],
+                    capture_output=True, check=False)
             shout.request_input_monitoring()
             self._open_pane("Privacy_ListenEvent")
 
@@ -145,9 +156,40 @@ class SetupController(NSObject):
             return bool(app.daemon and app.daemon.tap is not None)
 
         def audio_ok():
-            return app.recorder is not None
+            #  Reads the one-shot probe from startup rather than opening the
+            #  device itself: this is polled every second, and probing here
+            #  would flash the microphone indicator continuously.
+            return app.recorder is not None and getattr(app, "mic_ok", False)
+
+        def dupes_ok():
+            import version
+            return not version.duplicate_bundles()
+
+        def dupes_act():
+            import version
+            copies = version.duplicate_bundles()
+            if not copies:
+                return
+            alert = NSAlert.alloc().init()
+            alert.setMessageText_("Extra copies of shout found")
+            alert.setInformativeText_(
+                "These will be moved to the Trash:\n\n"
+                + "\n".join(copies)
+                + "\n\nDragging to Applications twice is easy to do by "
+                  "accident. Only one copy should exist.")
+            alert.addButtonWithTitle_("Move to Trash")
+            alert.addButtonWithTitle_("Cancel")
+            if alert.runModal() != 1000:
+                return
+            for path in copies:
+                ok, msg = version.remove_bundle(path)
+                if not ok:
+                    self.status.setStringValue_(f"Could not remove {path}: {msg}")
 
         return [
+            Step("dupes", "One copy installed",
+                 "Extra copies cause updates to appear not to take effect.",
+                 dupes_ok, dupes_act, "Remove Extras", optional=True),
             Step("mic", "Microphone",
                  "So shout can hear you. Audio never leaves this Mac.",
                  mic_ok, mic_act, "Grant Access"),
@@ -158,7 +200,7 @@ class SetupController(NSObject):
                  "Usually needed for the shortcut. Skip if step 7 already works.",
                  listen_ok, listen_act, optional=True),
             Step("audio", "Microphone connected",
-                 "Opens the input device and starts listening for your shortcut.",
+                 "Verifies the input device opens. Released again when idle.",
                  audio_ok, None, ""),
             Step("server", "Speech engine",
                  "Loads the transcription model. Runs locally on this Mac.",

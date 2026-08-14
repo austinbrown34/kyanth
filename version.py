@@ -12,13 +12,15 @@ build that finds an older holder asks it to quit, waits, and takes over.
 
 import json
 import os
+import sys
 import signal
 import time
 from pathlib import Path
 
 import paths
+from paths import BUNDLE_ID
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 
 def _parse(v: str) -> tuple:
@@ -222,3 +224,71 @@ def installed_version() -> str | None:
         return str(data.get("CFBundleShortVersionString") or "") or None
     except Exception:
         return None
+
+
+# ---------------------------------------------------------- duplicates
+
+def duplicate_bundles() -> list[str]:
+    """Other copies of shout.app besides the one we are running from.
+
+    Dragging the app to Applications twice is easy to do by accident — the
+    drop gives no feedback, so people repeat it — and leaves "shout 2.app"
+    alongside "shout.app". Both carry the same bundle identifier, so only one
+    can run (the file lock sees to that), but the update handover then compares
+    against whichever copy was launched, and an update can appear not to take.
+    """
+    import subprocess
+
+    #  Only meaningful for an installed app. Running from source there is no
+    #  bundle to be duplicated, and every installed copy would be reported.
+    if not paths.FROZEN:
+        return []
+
+    #  sys.executable is .../shout.app/Contents/MacOS/shout when frozen, which
+    #  identifies our own bundle exactly. paths.resources() points at the
+    #  unpacked resource dir and does not.
+    running = str(Path(sys.executable).resolve())
+    if ".app/" in running:
+        running = running.split(".app/")[0] + ".app"
+
+    found = []
+    for directory in ("/Applications", str(Path.home() / "Applications")):
+        d = Path(directory)
+        if not d.is_dir():
+            continue
+        try:
+            entries = list(d.iterdir())
+        except OSError:
+            continue
+        for entry in entries:
+            if not entry.name.endswith(".app"):
+                continue
+            plist = entry / "Contents" / "Info.plist"
+            if not plist.is_file():
+                continue
+            try:
+                import plistlib
+                with open(plist, "rb") as fh:
+                    bundle_id = plistlib.load(fh).get("CFBundleIdentifier")
+            except Exception:
+                continue
+            if bundle_id != BUNDLE_ID:
+                continue
+            if str(entry) == running:
+                continue
+            found.append(str(entry))
+    return sorted(found)
+
+
+def remove_bundle(path: str) -> tuple[bool, str]:
+    """Move a duplicate to the Trash rather than deleting it outright."""
+    try:
+        import subprocess
+        script = (f'tell application "Finder" to delete POSIX file "{path}"')
+        result = subprocess.run(["osascript", "-e", script],
+                                capture_output=True, text=True, timeout=20)
+        if result.returncode == 0:
+            return True, "moved to Trash"
+        return False, result.stderr.strip() or "Finder refused"
+    except Exception as exc:
+        return False, str(exc)

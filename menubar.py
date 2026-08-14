@@ -26,6 +26,7 @@ from PyObjCTools import AppHelper
 import config as config_mod
 import history as history_mod
 import loginitem
+import overlay as overlay_mod
 import shout
 import sounds
 import version
@@ -172,6 +173,10 @@ class ShoutApp(rumps.App):
         self.recorder = None
         self.daemon = None
         self._warned_listen = False
+        self._icon_state = None       # skip redundant NSImage rebuilds
+        self.mic_ok = False
+        self._level_timer = None
+        self.overlay = overlay_mod.Overlay.alloc().init()
 
         self.status_item = rumps.MenuItem("Starting…")
         self.toggle_item = rumps.MenuItem("Enabled", callback=self.on_toggle)
@@ -269,8 +274,14 @@ class ShoutApp(rumps.App):
             self.recorder = shout.Recorder(
                 device=shout.resolve_input_device(self.cfg.input_device),
                 lead_skip_ms=self.cues.lead_ms)
-            print(f"[start] input device: {self.recorder._stream.device} "
-                  f"({self.cfg.input_device or 'system default'})")
+            #  The device is opened lazily now, so constructing the Recorder no
+            #  longer proves the microphone works. Probe once — open and
+            #  immediately release — so setup can report a real answer without
+            #  holding the device or flashing the indicator on every poll.
+            self.mic_ok = self.recorder.probe()
+            print(f"[start] input device: "
+                  f"{self.cfg.input_device or 'system default'} "
+                  f"(usable={self.mic_ok})")
         except Exception as e:
             print(f"[start] microphone unavailable: {e}")
             self.set_state("needs-permission")
@@ -444,13 +455,18 @@ class ShoutApp(rumps.App):
         if self.daemon and not self.daemon.enabled:
             state = "disabled"
 
-        name, template = ICONS.get(state, ICONS["idle"])
-        path = ASSETS / name
-        if path.exists():
-            # template must be set first: rumps' icon setter reads the current
-            # template flag when building the NSImage.
-            self.template = template
-            self.icon = str(path)
+        #  Rebuild the status image only on a real change. rumps re-assigns
+        #  .icon from inside its template setter, so a naive update allocated
+        #  two NSImages per call — six per dictation — and the status item was
+        #  reported vanishing after prolonged use.
+        if state != self._icon_state:
+            name, template = ICONS.get(state, ICONS["idle"])
+            path = ASSETS / name
+            if path.exists():
+                self.template = template
+                self.icon = str(path)
+            self._icon_state = state
+            self._update_overlay(state)
 
         label = {
             "idle": (f"Ready — {'hold' if self.cfg.mode == MODE_HOLD else 'press'} "
@@ -461,6 +477,45 @@ class ShoutApp(rumps.App):
             "disabled": "Disabled",
         }.get(state, state)
         self.status_item.title = label
+
+    def _update_overlay(self, state: str):
+        """Mirror the state onto the floating indicator.
+
+        This is the only signal that survives a full menu bar and muted
+        speakers, so it carries more weight than it looks.
+        """
+        try:
+            if state == "recording":
+                self.overlay.show(overlay_mod.LISTENING)
+                self._start_level_feed()
+            elif state == "working":
+                self.overlay.set_mode(overlay_mod.WORKING)
+                self._stop_level_feed()
+            else:
+                self._stop_level_feed()
+                self.overlay.hide()
+        except Exception as exc:
+            #  Logged, never raised: the indicator must not break dictation.
+            print(f"[overlay] {state} failed: {exc}", flush=True)
+
+    def _start_level_feed(self):
+        if self._level_timer is not None:
+            return
+        self._level_timer = (
+            rumps.Timer(self._push_level, 0.05))
+        self._level_timer.start()
+
+    def _stop_level_feed(self):
+        if self._level_timer is not None:
+            self._level_timer.stop()
+            self._level_timer = None
+
+    def _push_level(self, _timer):
+        try:
+            if self.recorder is not None:
+                self.overlay.set_level(min(self.recorder.level * 6.0, 1.0))
+        except Exception:
+            pass
 
     def on_result(self, text: str, secs: float, ms: float, where: str = "pasted"):
         """Called from the worker thread. Only touches plain data here; the menu
