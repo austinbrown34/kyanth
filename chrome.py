@@ -588,7 +588,35 @@ class SourceRow(NSView):
         self.badge = ""
         self.selected = False
         self.hover = False
+        self.on_press = None
         return self
+
+    #  A hand-drawn view is invisible to accessibility unless it says
+    #  otherwise: no role, no label, nothing to press. The tab strip this
+    #  replaced was navigable for free, so leaving it out would be a
+    #  regression, not merely an omission.
+    def isAccessibilityElement(self):
+        return True
+
+    def accessibilityRole(self):
+        return "AXRadioButton"
+
+    def accessibilityLabel(self):
+        return self.title
+
+    def accessibilityTitle(self):
+        #  AXTitle is what assistive tools and UI scripting read as the
+        #  element's name; AXLabel alone leaves it nameless.
+        return self.title
+
+    def accessibilityValue(self):
+        return 1 if self.selected else 0
+
+    def accessibilityPerformPress(self):
+        if self.on_press is not None:
+            self.on_press()
+            return True
+        return False
 
     @python_method
     def set_selected(self, on):

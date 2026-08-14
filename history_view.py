@@ -236,6 +236,29 @@ class ChipView(NSView):
             self.selected = on
             self.setNeedsDisplay_(True)
 
+    def isAccessibilityElement(self):
+        return True
+
+    def accessibilityRole(self):
+        return "AXRadioButton"
+
+    def accessibilityLabel(self):
+        return self.title
+
+    def accessibilityTitle(self):
+        #  AXTitle is what assistive tools and UI scripting read as the
+        #  element's name; AXLabel alone leaves it nameless.
+        return self.title
+
+    def accessibilityValue(self):
+        return 1 if self.selected else 0
+
+    def accessibilityPerformPress(self):
+        if self.pane is not None:
+            self.pane.set_filter(self.key)
+            return True
+        return False
+
     def drawRect_(self, rect):
         box = self.bounds()
         path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(

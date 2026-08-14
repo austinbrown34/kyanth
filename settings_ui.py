@@ -161,6 +161,7 @@ class SettingsController(NSObject):
                                chrome.SOURCE_H))
                 row.setAutoresizingMask_(8)
                 row.title, row.symbol = title, symbol
+                row.on_press = (lambda k=key: self.select_(k))
                 self.source_rows[key] = row
                 self.sidebar.addSubview_(row)
                 y -= chrome.SOURCE_H + 2.0
@@ -771,6 +772,9 @@ class SettingsController(NSObject):
         # local event monitor would never fire.
         self.window.center()
         self.window.makeKeyAndOrderFront_(None)
+        #  Otherwise the first text field takes focus on open and wears a
+        #  focus ring, which reads as "you were about to edit this".
+        self.window.makeFirstResponder_(None)
         NSApp.activateIgnoringOtherApps_(True)
         if self.level_timer is None:
             self.level_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
