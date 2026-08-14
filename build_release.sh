@@ -102,7 +102,16 @@ print('    all modules import cleanly, no class-name collisions')
 # -------------------------------------------------------------- 3. build
 echo "==> building app bundle"
 rm -rf build dist/Kyanth dist/Kyanth.app
-uv run pyinstaller kyanth.spec --noconfirm --clean --log-level WARN
+# PyInstaller logs "ERROR: Hidden import 'x' not found" and then exits 0, so a
+# missing module sails through the build, gets signed and notarised, and only
+# surfaces as a crash on the user's machine. Fail here instead.
+uv run pyinstaller kyanth.spec --noconfirm --clean --log-level WARN 2>&1 \
+  | tee /tmp/kyanth-pyinstaller.log
+if grep -q "^[0-9]* ERROR:" /tmp/kyanth-pyinstaller.log; then
+  grep "^[0-9]* ERROR:" /tmp/kyanth-pyinstaller.log >&2
+  echo "pyinstaller reported errors — not shipping this bundle" >&2
+  exit 1
+fi
 
 # --------------------------------------------------------------- 4. sign
 # Inside-out order is mandatory: nested code must be signed before the bundle
