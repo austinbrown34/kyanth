@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  shout — app icon, Level.
+  Master drawing at 1024 pt. Everything is rectangles and two linear
+  gradients, so make_icons.py can keep drawing this procedurally in
+  CoreGraphics rather than shipping raster assets. See IMPLEMENTATION.md.
+
+  Geometry (1024 canvas):
+    tile     0,0 1024×1024  r=228.8   (22.37% — the macOS squircle radius)
+    bar L  224,376  128×272  r=64
+    bar C  448,264  128×496  r=64     <- the peak, the only colour
+    bar R  672,328  128×368  r=64
+  All three bars are centred on y=512. Width:gap is 4:3 (128 : 96).
+  Bar height ratio is 34 : 62 : 46.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="ground" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0"    stop-color="#4c5468"/>
+      <stop offset="0.55" stop-color="#252b39"/>
+      <stop offset="1"    stop-color="#14171f"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#ffffff" stop-opacity="0.20"/>
+      <stop offset="0.42" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#cfd6e4"/>
+    </linearGradient>
+    <linearGradient id="peak" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7db6ff"/>
+      <stop offset="1" stop-color="#0a6cf5"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="228.8" fill="url(#ground)"/>
+  <rect width="1024" height="1024" rx="228.8" fill="url(#sheen)"/>
+
+  <rect x="224" y="376" width="128" height="272" rx="64" fill="url(#bar)"/>
+  <rect x="448" y="264" width="128" height="496" rx="64" fill="url(#peak)"/>
+  <rect x="672" y="328" width="128" height="368" rx="64" fill="url(#bar)"/>
+</svg>

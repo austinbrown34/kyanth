@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  shout — menu-bar status glyphs, Level. Six states, six shapes.
+
+  Rendered at exactly 20 × 20 pt (rumps hard-codes the status image size).
+  Every glyph is ONE colour on transparent, so it can be an NSImage with
+  isTemplate = true and macOS will invert it for dark menu bars and for an
+  open menu. The single exception is the red dot in `recording`, which opts
+  out of template mode — the same deliberate inconsistency the app already
+  ships, because at 20 pt a colour change is legible where a shape change
+  is not.
+
+  States are distinguished by SHAPE, not by colour. That matters because the
+  icon is white over an arbitrary wallpaper, and because macOS silently hides
+  status items on a full menu bar — so none of this is load-bearing on its
+  own. The overlay carries all six states independently.
+
+    idle              meter at rest
+    recording         bars at speaking height + red dot (non-template)
+    transcribing      bars collapse to three equal stubs and cycle
+    disabled          meter dimmed and struck through
+    needs-permission  hollow meter — the shape is there, the substance is not
+    error             struck out
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="20" viewBox="0 0 180 20">
+  <defs>
+    <symbol id="shout-glyph-idle" viewBox="0 0 20 20">
+      <g fill="currentColor">
+        <rect x="4" y="7.5" width="2.6" height="5" rx="1.3"/>
+        <rect x="8.7" y="5" width="2.6" height="10" rx="1.3"/>
+        <rect x="13.4" y="6.5" width="2.6" height="7" rx="1.3"/>
+      </g>
+    </symbol>
+
+    <symbol id="shout-glyph-recording" viewBox="0 0 20 20">
+      <g fill="currentColor">
+        <rect x="4" y="5.5" width="2.6" height="9" rx="1.3"/>
+        <rect x="8.7" y="3" width="2.6" height="14" rx="1.3"/>
+        <rect x="13.4" y="4.5" width="2.6" height="11" rx="1.3"/>
+      </g>
+      <!-- non-template: keep this red -->
+      <circle cx="17.2" cy="3.4" r="2.6" fill="#e5372c"/>
+    </symbol>
+
+    <symbol id="shout-glyph-transcribing" viewBox="0 0 20 20">
+      <g fill="currentColor">
+        <rect x="4" y="8.6" width="2.6" height="2.8" rx="1.3"/>
+        <rect x="8.7" y="8.6" width="2.6" height="2.8" rx="1.3"/>
+        <rect x="13.4" y="8.6" width="2.6" height="2.8" rx="1.3"/>
+      </g>
+    </symbol>
+
+    <symbol id="shout-glyph-disabled" viewBox="0 0 20 20">
+      <g fill="currentColor" opacity=".55">
+        <rect x="4" y="7.5" width="2.6" height="5" rx="1.3"/>
+        <rect x="8.7" y="5" width="2.6" height="10" rx="1.3"/>
+        <rect x="13.4" y="6.5" width="2.6" height="7" rx="1.3"/>
+      </g>
+      <path d="M3.2 16.4 16.8 3.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
+
+    <symbol id="shout-glyph-needs-permission" viewBox="0 0 20 20">
+      <g fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect x="4.2" y="7.7" width="2.2" height="4.6" rx="1.1"/>
+        <rect x="8.9" y="5.2" width="2.2" height="9.6" rx="1.1"/>
+        <rect x="13.6" y="6.7" width="2.2" height="6.6" rx="1.1"/>
+      </g>
+    </symbol>
+
+    <symbol id="shout-glyph-error" viewBox="0 0 20 20">
+      <g fill="currentColor" opacity=".45">
+        <rect x="4" y="7.5" width="2.6" height="5" rx="1.3"/>
+        <rect x="8.7" y="5" width="2.6" height="10" rx="1.3"/>
+        <rect x="13.4" y="6.5" width="2.6" height="7" rx="1.3"/>
+      </g>
+      <g stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M5.6 5.6 14.4 14.4"/>
+        <path d="M14.4 5.6 5.6 14.4"/>
+      </g>
+    </symbol>
+  </defs>
+
+  <!-- preview row, in state order -->
+  <g color="#000000">
+    <use href="#shout-glyph-idle"             x="0"   width="20" height="20"/>
+    <use href="#shout-glyph-recording"        x="32"  width="20" height="20"/>
+    <use href="#shout-glyph-transcribing"     x="64"  width="20" height="20"/>
+    <use href="#shout-glyph-disabled"         x="96"  width="20" height="20"/>
+    <use href="#shout-glyph-needs-permission" x="128" width="20" height="20"/>
+    <use href="#shout-glyph-error"            x="160" width="20" height="20"/>
+  </g>
+</svg>

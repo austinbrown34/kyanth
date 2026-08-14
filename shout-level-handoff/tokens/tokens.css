@@ -1,0 +1,93 @@
+/* ==========================================================================
+   shout — Level
+   Design tokens, standalone. This file is the source of truth; the
+   prototype's css/level.css carries the same values.
+
+   Two appearances. Everything except the brand layer flips with the system
+   setting; the brand layer does not, because the app icon does not.
+   ========================================================================== */
+
+:root {
+  /* ---- type ------------------------------------------------------------ */
+  --font-ui:      -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  --font-mono:    ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+
+  /* ---- geometry -------------------------------------------------------- */
+  --radius-win: 11px;   /* window corner */
+  --radius-box: 9px;    /* grouped box */
+  --radius-ctl: 6px;    /* button, field, popup */
+  --radius-row: 7px;    /* sidebar row, tab */
+  --hairline:   1px;
+
+  /* ---- surfaces, light ------------------------------------------------- */
+  --surface:  #ffffff;   /* window body, pane */
+  --footer:   #f7f7f9;   /* grouped-box fill, table header, footer bar */
+  --titlebar: #f0f0f2;
+  --border:   rgba(0,0,0,.11);
+  --hover:    rgba(0,0,0,.05);
+  --ctl:      #ffffff;
+  --switch-off: rgba(0,0,0,.16);
+  --win-hairline: rgba(0,0,0,.14);
+
+  /* ---- content, light -------------------------------------------------- */
+  --fg:    #1b1b1f;
+  --muted: #77777f;
+
+  /* ---- semantic, light ------------------------------------------------- */
+  --accent: #0a6cf5;   /* == --peak-solid; system-blue-adjacent, deliberate */
+  --accent-fg: #ffffff;
+  --record: #e5372c;   /* recording only */
+  --warn:   #d4820a;   /* optional setup step */
+  --ok:     #1f9c4a;   /* reserved; NOT used for satisfied setup steps */
+  --meter-idle: rgba(0,0,0,.14);
+
+  /* ---- brand layer — identical in both appearances --------------------- */
+  /* Read off the app icon. Do not substitute approximations. */
+  --band:       linear-gradient(152deg, #414a5e 0%, #262c3a 54%, #171b24 100%);
+  --band-fg:    #eef1f7;
+  --band-muted: rgba(238,241,247,.58);
+  --band-dim:   rgba(238,241,247,.42);
+  --band-hair:  rgba(255,255,255,.13);
+  --silver:     #dfe4ee;
+  --peak-solid: #0a6cf5;
+  --peak:       linear-gradient(180deg, #7db6ff 0%, #0a6cf5 100%);
+  --mark-done:  #2c3444;   /* satisfied setup step */
+
+  /* the two gradients the logo bars are painted with — icon stops verbatim */
+  --logo-bar:  linear-gradient(180deg, #ffffff 0%, #cfd6e4 100%);
+  --logo-peak: linear-gradient(180deg, #7db6ff 0%, #0a6cf5 100%);
+  --logo-glow: 0 0 12px rgba(125,182,255,.5);
+}
+
+[data-appearance="dark"] {
+  --surface:  #232326;
+  --footer:   #1e1e21;
+  --titlebar: #2c2c30;
+  --border:   rgba(255,255,255,.12);
+  --hover:    rgba(255,255,255,.07);
+  --ctl:      rgba(255,255,255,.09);
+  --switch-off: rgba(255,255,255,.18);
+  --win-hairline: rgba(255,255,255,.10);
+
+  --fg:    #f0f0f2;
+  --muted: #96969e;
+
+  --accent: #3d8bff;
+  --accent-fg: #ffffff;
+  --record: #ff5f52;
+  --warn:   #f0a52a;
+  --ok:     #3ec46d;
+  --meter-idle: rgba(255,255,255,.16);
+
+  /* The band lifts slightly in dark mode so it still separates from the
+     window body behind it. The logo gradients do NOT change. */
+  --band:       linear-gradient(152deg, #333c4e 0%, #1e2430 54%, #12151c 100%);
+  --band-fg:    #f0f2f7;
+  --band-muted: rgba(240,242,247,.56);
+  --band-dim:   rgba(240,242,247,.40);
+  --band-hair:  rgba(255,255,255,.11);
+  --peak-solid: #3d8bff;
+  --peak:       linear-gradient(180deg, #8fc0ff 0%, #3d8bff 100%);
+  --mark-done:  #46516a;
+}

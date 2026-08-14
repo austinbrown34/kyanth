@@ -42,6 +42,7 @@ a = Analysis(
     datas=datas,
     hiddenimports=[
         "config", "history", "hotkey", "loginitem", "paths", "postprocess",
+        "tokens",
         "overlay", "settings_ui", "setup_ui", "shout", "sounds", "vad", "version",
     ],
     excludes=["tkinter", "matplotlib", "PIL", "pytest", "setuptools"],

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  shout — logo mark, Level.
+  The icon's subject lifted off its ground, for use inside window headers on
+  the slate band. Same gradients, same 34 : 62 : 46 proportions, same 4:3
+  width-to-gap ratio as the tile.
+
+  Pairs with the wordmark "shout" — SF Pro Display, 15.5 pt, weight 600,
+  tracking -0.022em, colour band-fg — set 11 pt to the right of the mark,
+  optically centred on the mark's middle axis. Render the mark at 24 pt tall
+  in UI; that is its only size.
+
+  The peak bar carries a glow in UI (0 0 12px rgba(125,182,255,.5)). It is a
+  shadow, not part of the artwork, so it is not in this file.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="72" height="62" viewBox="0 0 72 62">
+  <defs>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#cfd6e4"/>
+    </linearGradient>
+    <linearGradient id="peak" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7db6ff"/>
+      <stop offset="1" stop-color="#0a6cf5"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0"  y="14" width="16" height="34" rx="8" fill="url(#bar)"/>
+  <rect x="28" y="0"  width="16" height="62" rx="8" fill="url(#peak)"/>
+  <rect x="56" y="8"  width="16" height="46" rx="8" fill="url(#bar)"/>
+</svg>

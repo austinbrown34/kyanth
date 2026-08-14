@@ -448,7 +448,7 @@ def _handle(job, cfg: Config, session, verbose, on_state, on_result, cues=None) 
     if not vad.has_speech(audio, SAMPLE_RATE):
         if cues:
             cues.play("ignored")
-        on_state("idle")
+        on_state("ignored")
         if verbose:
             print(f"  ○ {raw_secs:.1f}s captured, no speech detected — not transcribed")
         return
@@ -469,7 +469,7 @@ def _handle(job, cfg: Config, session, verbose, on_state, on_result, cues=None) 
     text = postprocess.process(raw, cfg.vocabulary, cfg.profile_for(app_name))
 
     if not text:
-        on_state("idle")
+        on_state("ignored")
         if verbose:
             print(f"  ({raw_secs:.1f}s audio, no speech)")
         return
@@ -548,7 +548,7 @@ class Daemon:
             # silently discarded. Now it says so.
             if self.cues:
                 self.cues.play("ignored")
-            self.on_state("idle")
+            self.on_state("ignored")
             if self.verbose:
                 print(f"  ○ too short ({held:.2f}s), ignored")
             self.short_presses += 1

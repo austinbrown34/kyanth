@@ -1,0 +1,405 @@
+/* ==========================================================================
+   Concept 01 — LEVEL
+   Bet: shout is a meter. The mark is amplitude, not a microphone.
+   Posture: as close to something Apple shipped as we can get. System
+   accent, vibrancy, hairlines, no invented palette. The only place the app
+   raises its voice is the level itself.
+   ========================================================================== */
+
+:root {
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  --radius-win: 11px;
+  --radius-ctl: 6px;
+
+  /* light */
+  --page: #f2f2f4;
+  --stage: linear-gradient(180deg, #f4f4f6 0%, #e8e9ec 100%);
+  --pres-bg: rgba(246,246,248,.82);
+  --pres-border: rgba(0,0,0,.09);
+  --hover: rgba(0,0,0,.05);
+  --seg-bg: rgba(0,0,0,.05);
+  --seg-on: #ffffff;
+
+  --surface: #ffffff;
+  --titlebar: #f0f0f2;
+  --footer: #f7f7f9;
+  --border: rgba(0,0,0,.11);
+  --win-hairline: rgba(0,0,0,.14);
+  --ctl: #ffffff;
+  --switch-off: rgba(0,0,0,.16);
+
+  --fg: #1b1b1f;
+  --muted: #77777f;
+  --accent: #0a6cf5;
+  --accent-fg: #ffffff;
+  --record: #e5372c;
+  --warn: #d4820a;
+  --ok: #1f9c4a;
+  --meter-idle: rgba(0,0,0,.14);
+
+  --wallpaper: linear-gradient(158deg, #6d7f96 0%, #46536a 46%, #2b3346 100%);
+  --menubar-bg: rgba(255,255,255,.30);
+  --menubar-fg: #ffffff;
+  --menubar-sel: rgba(255,255,255,.28);
+  --menu-bg: rgba(248,248,250,.82);
+  --menu-border: rgba(0,0,0,.10);
+  --menu-sep: rgba(0,0,0,.10);
+
+  /* Brand layer — every value below is read off the app icon, not invented.
+     Ground   #4c5468 → #252b39 → #14171f   the slate the mark stands on
+     Subject  warm silver                    the two outer bars
+     Peak     #7db6ff → #0a6cf5              the middle bar, the only colour */
+  --band:       linear-gradient(152deg, #414a5e 0%, #262c3a 54%, #171b24 100%);
+  --band-fg:    #eef1f7;
+  --band-muted: rgba(238,241,247,.58);
+  --band-dim:   rgba(238,241,247,.42);
+  --band-hair:  rgba(255,255,255,.13);
+  --silver:     #dfe4ee;
+  --peak-solid: #0a6cf5;
+  --peak:       linear-gradient(180deg, #7db6ff 0%, #0a6cf5 100%);
+  --mark-done:  #2c3444;
+}
+
+[data-appearance="dark"] {
+  --page: #17171a;
+  --stage: linear-gradient(180deg, #1b1b1f 0%, #101013 100%);
+  --pres-bg: rgba(28,28,32,.82);
+  --pres-border: rgba(255,255,255,.09);
+  --hover: rgba(255,255,255,.07);
+  --seg-bg: rgba(255,255,255,.06);
+  --seg-on: rgba(255,255,255,.15);
+
+  --surface: #232326;
+  --titlebar: #2c2c30;
+  --footer: #1e1e21;
+  --border: rgba(255,255,255,.12);
+  --win-hairline: rgba(255,255,255,.10);
+  --ctl: rgba(255,255,255,.09);
+  --switch-off: rgba(255,255,255,.18);
+
+  --fg: #f0f0f2;
+  --muted: #96969e;
+  --accent: #3d8bff;
+  --accent-fg: #ffffff;
+  --record: #ff5f52;
+  --warn: #f0a52a;
+  --ok: #3ec46d;
+  --meter-idle: rgba(255,255,255,.16);
+
+  --wallpaper: linear-gradient(158deg, #2f3a4d 0%, #1d2330 50%, #101319 100%);
+  --menubar-bg: rgba(0,0,0,.34);
+  --menu-bg: rgba(40,40,44,.80);
+  --menu-border: rgba(255,255,255,.12);
+  --menu-sep: rgba(255,255,255,.11);
+
+  /* The band stays dark in both appearances — the icon does too. It lifts a
+     little in dark mode so it separates from the window body behind it. */
+  --band:       linear-gradient(152deg, #333c4e 0%, #1e2430 54%, #12151c 100%);
+  --band-fg:    #f0f2f7;
+  --band-muted: rgba(240,242,247,.56);
+  --band-dim:   rgba(240,242,247,.40);
+  --band-hair:  rgba(255,255,255,.11);
+  --silver:     #dfe4ee;
+  --peak-solid: #3d8bff;
+  --peak:       linear-gradient(180deg, #8fc0ff 0%, #3d8bff 100%);
+  --mark-done:  #46516a;
+}
+
+/* ==========================================================================
+   Brand furniture
+   ========================================================================== */
+
+/* The icon's ground, reused as window material. Anything wearing .band gets
+   the slate gradient plus the icon's top sheen, unbroken across its children. */
+.band {
+  position: relative;
+  background: var(--band);
+  color: var(--band-fg);
+}
+.band::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.13), rgba(255,255,255,0) 46%);
+}
+.band > * { position: relative; z-index: 1; }
+.band .win-bar { background: transparent; border-bottom: 0; }
+.band .setup-head { background: transparent; border-bottom: 0; }
+.band .win-title { color: var(--band-fg); }
+.band .setup-head h1 { color: var(--band-fg); }
+.band .setup-head p { color: var(--band-muted); }
+.band .ring .track { stroke: rgba(255,255,255,.22); }
+.band .ring .fill { stroke: var(--peak-solid); }
+.band .ring-wrap .num { color: var(--band-fg); }
+
+/* --------------------------------------------------------------------------
+   THE LOCKUP — one construction, one size, one set of colours, top-left of
+   every window. There is no small variant and no ghosted variant; if the mark
+   appears at all it appears at full strength.
+
+   The colours are the icon's own gradients rather than approximations of
+   them: the bars carry #ffffff → #cfd6e4 and the peak carries
+   #7db6ff → #0a6cf5, exactly the stops the 1024 pt tile is drawn with. Bar
+   proportions are the icon's too — 34 : 62 : 46, all centred on one axis,
+   with the icon's 4:3 width-to-gap ratio.
+
+   Deliberately identical in light and dark. The Dock tile does not change
+   appearance, so neither does the logo.
+   -------------------------------------------------------------------------- */
+.lockup { display: flex; align-items: center; gap: 11px; }
+.wordmark {
+  font-family: var(--font-display);
+  font-size: 15.5px; font-weight: 600; letter-spacing: -0.022em;
+  color: var(--band-fg);
+}
+.mark { display: inline-flex; align-items: center; gap: 4.5px; height: 24px; flex: none; }
+.mark i {
+  display: block; width: 6px; border-radius: 3px;
+  background: linear-gradient(180deg, #ffffff 0%, #cfd6e4 100%);
+}
+.mark i:nth-child(1) { height: 13.2px; }
+.mark i:nth-child(2) {
+  height: 24px;
+  background: linear-gradient(180deg, #7db6ff 0%, #0a6cf5 100%);
+  box-shadow: 0 0 12px rgba(125,182,255,.5);
+}
+.mark i:nth-child(3) { height: 17.8px; }
+
+/* ==========================================================================
+   Window shell — full-height source list beside a content pane.
+   The sidebar is the band, so the slate reads as a large calm field rather
+   than a stripe, and the traffic lights sit on it the way they do in any
+   Mac app with a full-height sidebar.
+   ========================================================================== */
+.side-split { display: grid; grid-template-columns: 198px 1fr; min-height: 452px; }
+
+.sidebar { display: flex; flex-direction: column; padding: 0 10px 12px; }
+.sidebar .tl { padding: 13px 4px 0; }
+/* the lockup seats at the top-left of the sidebar, aligned to the same 9px
+   gutter the source-list rows use, with room around it so it reads as a
+   masthead rather than as the first item in the list */
+.sidebar .lockup { padding: 17px 9px 6px; }
+.sb-version {
+  margin-top: auto; padding: 12px 9px 2px;
+  font-size: 10.5px; color: var(--band-dim);
+  font-variant-numeric: tabular-nums; letter-spacing: 0.02em;
+}
+.sb-head {
+  padding: 15px 9px 5px; font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.11em; text-transform: uppercase; color: var(--band-dim);
+}
+.sb-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 6px 9px; border-radius: 7px; cursor: default;
+  font-size: 12.5px; color: var(--band-muted);
+}
+.sb-item svg { flex: none; opacity: .85; }
+.sb-item:hover { background: rgba(255,255,255,.08); color: var(--band-fg); }
+.sb-item[aria-current="page"] {
+  background: var(--peak-solid); color: #fff; font-weight: 550;
+  box-shadow: 0 1px 3px rgba(0,0,0,.28);
+}
+.sb-item[aria-current="page"] svg { opacity: 1; }
+.sb-item .badge {
+  margin-left: auto; font-size: 11px; color: var(--band-dim);
+  font-variant-numeric: tabular-nums;
+}
+.sb-item[aria-current="page"] .badge { color: rgba(255,255,255,.72); }
+
+.pane { display: flex; flex-direction: column; min-width: 0; background: var(--surface); }
+.pane-head {
+  display: flex; align-items: flex-start; gap: 16px;
+  padding: 17px 22px 14px; border-bottom: 1px solid var(--border);
+}
+.pane-head h2 {
+  font-family: var(--font-display); font-size: 17px;
+  font-weight: 590; letter-spacing: -0.015em;
+}
+.pane-head p { color: var(--muted); font-size: 12.5px; margin-top: 3px; max-width: 54ch; }
+.pane-head .right { margin-left: auto; display: flex; align-items: center; gap: 9px; flex: none; }
+.pane-body { padding: 18px 22px 22px; display: grid; gap: 20px; align-content: start; }
+.pane-foot {
+  display: flex; align-items: center; gap: 8px; margin-top: auto;
+  padding: 11px 18px; border-top: 1px solid var(--border); background: var(--footer);
+}
+.pane-foot .ver { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+/* ==========================================================================
+   Grouped boxes — the macOS System Settings shape: a small uppercase label
+   outside the box, hairline-separated rows inside it.
+   ========================================================================== */
+.grp > h3 {
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.11em;
+  text-transform: uppercase; color: var(--muted); margin: 0 0 7px 13px;
+}
+.box {
+  border: 1px solid var(--border); border-radius: 9px;
+  background: var(--footer); overflow: hidden;
+}
+.box .r {
+  display: grid; grid-template-columns: 132px 1fr; gap: 14px;
+  align-items: center; padding: 11px 14px;
+}
+.box .r + .r, .box .note + .r { border-top: 1px solid var(--border); }
+.box .r > label { color: var(--muted); font-size: 12.5px; }
+.box .r.tall { align-items: start; }
+.box .r.tall > label { padding-top: 5px; }
+.val { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.box .note {
+  padding: 0 14px 11px; color: var(--muted);
+  font-size: 11.5px; line-height: 1.5; max-width: 62ch;
+}
+.box .r + .note { margin-top: -2px; }
+
+/* ==========================================================================
+   Data table — History
+   ========================================================================== */
+.tbl-wrap { overflow: auto; max-height: 336px; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.tbl th {
+  position: sticky; top: 0; z-index: 2; text-align: left;
+  background: var(--footer); color: var(--muted);
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.11em; text-transform: uppercase;
+  padding: 9px 14px; border-bottom: 1px solid var(--border);
+}
+.tbl td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.tbl tr.day td {
+  padding: 0; background: color-mix(in oklch, var(--fg) 4%, transparent);
+  border-bottom: 1px solid var(--border);
+}
+.tbl tr.day .inner {
+  display: flex; align-items: baseline; gap: 10px; padding: 6px 14px;
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.11em; text-transform: uppercase;
+}
+.tbl tr.day .inner span { letter-spacing: 0.02em; text-transform: none; font-weight: 400; color: var(--muted); font-size: 11px; }
+.tbl tr.entry td { cursor: default; }
+.tbl tr.entry:hover td { background: var(--hover); }
+.tbl tr.entry[aria-selected="true"] td { background: color-mix(in oklch, var(--peak-solid) 7%, transparent); }
+.tbl tr.entry[aria-selected="true"] td:first-child { box-shadow: inset 2.5px 0 0 var(--peak-solid); }
+.tbl .c-time { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; width: 58px; }
+.tbl .c-num { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tbl .c-txt { line-height: 1.45; }
+.tbl .c-txt .clip {
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+}
+.tbl .none { color: var(--muted); font-style: italic; }
+.tbl tr.detail td { padding: 0; background: color-mix(in oklch, var(--peak-solid) 7%, transparent); }
+.tbl tr.detail td { box-shadow: inset 2.5px 0 0 var(--peak-solid); }
+
+/* spoken-duration bar — the meter idea applied to the archive. Neutral until
+   the row is selected, then it lights with the peak. */
+.spoken { display: flex; align-items: center; gap: 8px; }
+.spoken .track { width: 46px; height: 4px; border-radius: 2px; background: var(--meter-idle); flex: none; }
+.spoken .fill { height: 4px; border-radius: 2px; background: color-mix(in oklch, var(--fg) 34%, transparent); }
+.tbl tr[aria-selected="true"] .spoken .fill { background: var(--peak); }
+
+.rowacts { display: flex; gap: 3px; opacity: 0; transition: opacity .12s; }
+.tbl tr.entry:hover .rowacts, .tbl tr.entry[aria-selected="true"] .rowacts { opacity: 1; }
+.rowacts button {
+  border: 0; background: transparent; color: var(--muted); cursor: pointer;
+  padding: 3px 8px; border-radius: 6px; font-size: 11.5px;
+}
+.rowacts button:hover { background: var(--hover); color: var(--fg); }
+
+/* expanded detail, in place */
+.expand { padding: 2px 14px 14px 14px; display: grid; gap: 12px; }
+.expand .body {
+  font-size: 13.5px; line-height: 1.6; padding-left: 14px;
+  background: var(--peak) left top / 2px 100% no-repeat;
+}
+.facts { display: flex; gap: 24px; flex-wrap: wrap; }
+.facts div { display: grid; gap: 1px; }
+.facts dt {
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.11em;
+  text-transform: uppercase; color: var(--muted);
+}
+.facts dd { font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+/* filter chips */
+.chips { display: flex; align-items: center; gap: 7px; }
+.chip {
+  border: 1px solid var(--border); background: var(--ctl); cursor: pointer;
+  padding: 3px 11px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 550; letter-spacing: 0.01em; color: var(--muted);
+}
+.chip:hover { color: var(--fg); }
+.chip[aria-pressed="true"] { background: var(--mark-done); color: #fff; border-color: transparent; }
+.filterbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface);
+}
+.empty { display: grid; place-items: center; gap: 7px; padding: 54px 40px; text-align: center; color: var(--muted); }
+.empty b { color: var(--fg); font-size: 14px; font-weight: 590; }
+
+/* live receipt for the shortcut */
+.recv {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 11.5px; color: var(--muted);
+  padding: 4px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--ctl);
+  transition: color .12s, background .12s, border-color .12s;
+}
+.recv .dot { background: currentColor; opacity: .5; }
+.recv[data-live="true"] { background: var(--peak); color: #fff; border-color: transparent; }
+.recv[data-live="true"] .dot { opacity: 1; }
+.chord { display: inline-flex; align-items: center; gap: 5px; min-height: 26px; }
+
+/* ==========================================================================
+   Identity sheet
+   ========================================================================== */
+.icon-row { display: flex; align-items: flex-end; gap: 30px; flex-wrap: wrap; }
+.icon-cell { display: grid; gap: 9px; justify-items: center; }
+.icon-cell .sz { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.appicon { border-radius: 22.37%; display: block; box-shadow: 0 10px 24px -8px rgba(0,0,0,.45); }
+
+.state-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.state-table th {
+  text-align: left; font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); padding: 0 12px 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.state-table td { padding: 11px 12px 11px 0; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.state-table td:first-child { font-weight: 550; white-space: nowrap; }
+.glyph-cell { width: 44px; }
+.glyph-box {
+  width: 30px; height: 30px; display: grid; place-items: center;
+  border-radius: 7px; background: var(--hover); color: var(--fg);
+}
+
+/* ==========================================================================
+   Setup
+   ========================================================================== */
+.phase-head { display: flex; align-items: baseline; gap: 9px; margin: 0 0 7px 13px; }
+.phase-head h3 { font-size: 9.5px; font-weight: 600; letter-spacing: 0.11em; text-transform: uppercase; color: var(--muted); }
+.phase-head .of { font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; margin-left: auto; margin-right: 2px; }
+
+.check { display: grid; grid-template-columns: 20px 1fr auto; gap: 12px; align-items: start; padding: 11px 14px; }
+.check + .check { border-top: 1px solid var(--border); }
+.check .mark-dot { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; margin-top: 1px; font-size: 11px; }
+/* Satisfied steps go slate, not green. Green on seven rows shouts, and the
+   window's own argument is that green permissions are not proof — so the
+   only saturated mark in the list is the one step still asking for you. */
+.check .mark-dot.done { background: var(--mark-done); color: var(--silver); }
+.check .mark-dot.warn { background: var(--warn); color: #fff; }
+.check .mark-dot.todo { border: 1.5px dashed var(--border); }
+.check .mark-dot.live { background: var(--peak-solid); color: #fff; }
+.check b { font-weight: 550; display: block; font-size: 12.5px; }
+.check .why { color: var(--muted); font-size: 11.5px; margin-top: 2px; line-height: 1.5; max-width: 52ch; }
+.check.blocked { background: color-mix(in oklch, var(--peak-solid) 7%, transparent); }
+.box.blocking { border-color: color-mix(in oklch, var(--peak-solid) 42%, transparent); }
+
+.ring { transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-linecap: round; }
+.ring .track { stroke: var(--border); }
+.ring .fill { stroke: var(--peak-solid); transition: stroke-dasharray .5s ease; }
+.ring-wrap { position: relative; display: grid; place-items: center; }
+.ring-wrap .num {
+  position: absolute; font-size: 15px; font-weight: 600;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+}
+
+/* ==========================================================================
+   Overlay
+   ========================================================================== */
+.ov-level { display: flex; align-items: center; gap: 2px; height: 14px; }
+.ov-level i { width: 2.5px; border-radius: 2px; background: currentColor; height: 3px; transition: height .06s linear; }

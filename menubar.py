@@ -26,6 +26,7 @@ from PyObjCTools import AppHelper
 import config as config_mod
 import history as history_mod
 import loginitem
+import menuheader
 import overlay as overlay_mod
 import shout
 import sounds
@@ -47,17 +48,25 @@ SHOW_SETTINGS_NOTE = "local.shout.dictation.showSettings"
 
 ASSETS = paths.resources() / "assets"
 
-#  (image, template). Template images are recolored by macOS to match the
-#  menu bar in light/dark and while a menu is open. The recording glyph opts
-#  out so its red dot survives — that one is worth the inconsistency.
+#  Six states, six SHAPES — not three glyphs doing six jobs. `idle` and
+#  `working` were previously identical, which was the single most-cited gap in
+#  the v1.2.0 reference. Template images are recoloured by macOS for light and
+#  dark menu bars; `recording` opts out so its red dot survives, which is the
+#  one deliberate inconsistency the app already shipped.
 ICONS = {
-    "idle":             ("menubar-idle@2x.png", True),
-    "recording":        ("menubar-rec@2x.png",  False),
-    "working":          ("menubar-idle@2x.png", True),
-    "error":            ("menubar-off@2x.png",  True),
-    "disabled":         ("menubar-off@2x.png",  True),
-    "needs-permission": ("menubar-off@2x.png",  True),
+    "idle":             ("menubar-idle@2x.png",             True),
+    "recording":        ("menubar-recording@2x.png",        False),
+    "working":          ("menubar-transcribing-0@2x.png",   True),
+    "disabled":         ("menubar-disabled@2x.png",         True),
+    "needs-permission": ("menubar-needs-permission@2x.png", True),
+    "error":            ("menubar-error@2x.png",            True),
 }
+
+#  `transcribing` animates: the taller stub walks left → centre → right on a
+#  ~180 ms timer. The timer stops the moment the state leaves `working` — a
+#  status item that keeps ticking is a battery complaint.
+TRANSCRIBE_FRAMES = [f"menubar-transcribing-{i}@2x.png" for i in range(3)]
+TRANSCRIBE_INTERVAL = 0.18
 
 #  Resolution order lives in paths.whisper_server(): the vendored copy inside
 #  the bundle first, then absolute Homebrew locations. launchd gives a
@@ -174,22 +183,36 @@ class ShoutApp(rumps.App):
         self.daemon = None
         self._warned_listen = False
         self._icon_state = None       # skip redundant NSImage rebuilds
+        self._transcribe_timer = None
+        self._transcribe_frame = 0
         self.mic_ok = False
         self._level_timer = None
         self.overlay = overlay_mod.Overlay.alloc().init()
 
-        self.status_item = rumps.MenuItem("Starting…")
+        #  Six rows in three groups. The status line became a header view, so
+        #  it no longer truncates to the menu width and can carry the live
+        #  meter and the chord in key caps. The five diagnostics moved behind
+        #  Advanced; Sound cues and Open at Login moved to Settings, where
+        #  preferences belong.
+        self.status_item = rumps.MenuItem("")
+        self.header = menuheader.make(self._chord_labels(), self._mode_hint())
+        self.status_item._menuitem.setView_(self.header)
+
         self.toggle_item = rumps.MenuItem("Enabled", callback=self.on_toggle)
         self.toggle_item.state = True
-        self.history_menu = rumps.MenuItem("Recent")
-        self.sound_item = rumps.MenuItem("Sound cues", callback=self.on_toggle_sound)
-        self.sound_item.state = self.cfg.sound
-        # Hidden when running from source, where there is no bundle to register.
-        self.login_item = None
-        if loginitem.available():
-            self.login_item = rumps.MenuItem("Open at Login",
-                                             callback=self.on_toggle_login)
-            self.login_item.state = loginitem.enabled()
+        self.history_menu = rumps.MenuItem("Recent transcriptions")
+
+        advanced = rumps.MenuItem("Advanced")
+        for title, cb in (("Edit Config…", self.on_edit_config),
+                          ("Reload Config", self.on_reload),
+                          ("Restart Model Server", self.on_restart_server),
+                          ("Check for Updates…", self.on_check_updates),
+                          ("Open Log", self.on_open_log)):
+            advanced.add(rumps.MenuItem(title, callback=cb))
+
+        settings_item = rumps.MenuItem("Settings & History…",
+                                       callback=self.on_settings, key=",")
+        quit_item = rumps.MenuItem("Quit shout", callback=self.on_quit, key="q")
 
         self.menu = [
             self.status_item,
@@ -197,17 +220,12 @@ class ShoutApp(rumps.App):
             self.toggle_item,
             self.history_menu,
             None,
-            self.sound_item,
-            *( [self.login_item] if self.login_item else [] ),
-            rumps.MenuItem("Settings & History…", callback=self.on_settings),
-            rumps.MenuItem("Setup Check…", callback=self.show_setup),
-            rumps.MenuItem("Edit Config…", callback=self.on_edit_config),
-            rumps.MenuItem("Reload Config", callback=self.on_reload),
-            rumps.MenuItem("Restart Model Server", callback=self.on_restart_server),
-            rumps.MenuItem("Check for Updates…", callback=self.on_check_updates),
-            rumps.MenuItem("Open Log", callback=self.on_open_log),
+            settings_item,
+            rumps.MenuItem("Re-run Setup Check…", callback=self.show_setup),
             None,
-            rumps.MenuItem("Quit shout", callback=self.on_quit),
+            advanced,
+            None,
+            quit_item,
         ]
 
     # ---------------------------------------------------------- lifecycle
@@ -375,8 +393,6 @@ class ShoutApp(rumps.App):
             return
         ok, msg = loginitem.set_enabled(True)
         config_mod.mark_login_offered()
-        if self.login_item is not None:
-            self.login_item.state = loginitem.enabled()
         print(f"[login] first run, registered at login: {ok} ({msg})")
 
     def install_tap(self) -> bool:
@@ -452,6 +468,16 @@ class ShoutApp(rumps.App):
         AppHelper.callAfter(self._apply_state, state)
 
     def _apply_state(self, state: str):
+        if state == "ignored":
+            #  An outcome, not a status: the pill says "Nothing heard" and
+            #  dismisses itself; the menu-bar icon stays idle.
+            try:
+                self.overlay.set_state(overlay_mod.IGNORED)
+            except Exception:
+                pass
+            self._stop_level_feed()
+            state = "idle"
+
         if self.daemon and not self.daemon.enabled:
             state = "disabled"
 
@@ -466,7 +492,16 @@ class ShoutApp(rumps.App):
                 self.template = template
                 self.icon = str(path)
             self._icon_state = state
+            self._set_transcribe_animation(state == "working")
             self._update_overlay(state)
+
+        try:
+            self.header.state = state
+            self.header.chord = self._chord_labels()
+            self.header.mode_hint = self._mode_hint()
+            self.header.setNeedsDisplay_(True)
+        except Exception:
+            pass
 
         label = {
             "idle": (f"Ready — {'hold' if self.cfg.mode == MODE_HOLD else 'press'} "
@@ -477,6 +512,33 @@ class ShoutApp(rumps.App):
             "disabled": "Disabled",
         }.get(state, state)
         self.status_item.title = label
+
+    def _chord_labels(self):
+        """The bound chord as separate key caps."""
+        try:
+            return [p.strip() for p in self.cfg.hotkey.label().split("+")]
+        except Exception:
+            return ["Right ⌥"]
+
+    def _mode_hint(self):
+        return "Hold" if self.cfg.mode == MODE_HOLD else "Press"
+
+    def _set_transcribe_animation(self, running: bool):
+        if running and self._transcribe_timer is None:
+            self._transcribe_frame = 0
+            self._transcribe_timer = rumps.Timer(self._tick_transcribe,
+                                                 TRANSCRIBE_INTERVAL)
+            self._transcribe_timer.start()
+        elif not running and self._transcribe_timer is not None:
+            self._transcribe_timer.stop()
+            self._transcribe_timer = None
+
+    def _tick_transcribe(self, _timer):
+        self._transcribe_frame = (self._transcribe_frame + 1) % len(TRANSCRIBE_FRAMES)
+        path = ASSETS / TRANSCRIBE_FRAMES[self._transcribe_frame]
+        if path.exists():
+            self.template = True
+            self.icon = str(path)
 
     def _update_overlay(self, state: str):
         """Mirror the state onto the floating indicator.
@@ -489,11 +551,18 @@ class ShoutApp(rumps.App):
                 self.overlay.show(overlay_mod.LISTENING)
                 self._start_level_feed()
             elif state == "working":
-                self.overlay.set_mode(overlay_mod.WORKING)
+                self.overlay.set_state(overlay_mod.TRANSCRIBING)
                 self._stop_level_feed()
+            elif state == "error":
+                self._stop_level_feed()
+                self.overlay.set_state(overlay_mod.ERROR,
+                                       "Model server not responding")
             else:
                 self._stop_level_feed()
-                self.overlay.hide()
+                #  An outcome pill dismisses itself; only clear the overlay
+                #  here if nothing is showing an outcome.
+                if not self.overlay.dismiss_timer:
+                    self.overlay.hide()
         except Exception as exc:
             #  Logged, never raised: the indicator must not break dictation.
             print(f"[overlay] {state} failed: {exc}", flush=True)
@@ -502,7 +571,7 @@ class ShoutApp(rumps.App):
         if self._level_timer is not None:
             return
         self._level_timer = (
-            rumps.Timer(self._push_level, 0.05))
+            rumps.Timer(self._push_level, 1.0 / 60.0))
         self._level_timer.start()
 
     def _stop_level_feed(self):
@@ -511,9 +580,15 @@ class ShoutApp(rumps.App):
             self._level_timer = None
 
     def _push_level(self, _timer):
+        #  Fed from the existing Recorder rather than a second AVAudioEngine
+        #  tap: opening another audio path would re-introduce the permanent
+        #  microphone indicator that on-demand capture was built to fix.
         try:
             if self.recorder is not None:
-                self.overlay.set_level(min(self.recorder.level * 6.0, 1.0))
+                level = min(self.recorder.level * 6.0, 1.0)
+                self.overlay.push_level(level)
+                self.header.level = level
+                self.header.setNeedsDisplay_(True)
         except Exception:
             pass
 
@@ -523,6 +598,15 @@ class ShoutApp(rumps.App):
         AppKit — must not be mutated from a background thread."""
         self.store.add(history_mod.Entry(text, shout.frontmost_app(),
                                          time.time(), ms, where))
+        try:
+            if where == "clipboard":
+                self.overlay.set_state(overlay_mod.CLIPBOARD)
+            else:
+                self.overlay.set_state(overlay_mod.PASTED,
+                                       f"Pasted into {shout.frontmost_app()}")
+        except Exception as exc:
+            print(f"[overlay] outcome failed: {exc}", flush=True)
+
         mark = " ⧉" if where == "clipboard" else ""
         preview = text if len(text) <= 60 else text[:57] + "…"
         self.history.appendleft(f"{preview}{mark}   ({ms:.0f}ms)")
@@ -557,9 +641,12 @@ class ShoutApp(rumps.App):
             self.daemon.enabled = bool(sender.state)
         self.set_state("idle" if sender.state else "disabled")
 
-    def on_toggle_sound(self, sender):
-        sender.state = not sender.state
-        on = bool(sender.state)
+    def on_toggle_sound(self, sender=None, on=None):
+        """Kept as a method for Settings to call; no longer a menu row."""
+        if on is None:
+            on = not self.cues.enabled
+        if sender is not None and hasattr(sender, "state"):
+            sender.state = on
         self.cues.enabled = on
         config_mod.save_settings(self.cfg.hotkey, self.cfg.mode, sound=on)
         self.cfg = config_mod.load()

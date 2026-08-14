@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en" data-appearance="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Level · Listening overlay — shout</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/level.css">
+<style>
+  /* ------------------------------------------------------------------------
+     The overlay is the icon, alive. Same slate ground, same top sheen, same
+     three bars — except here the bars are driven by the microphone, so the
+     mark that identifies the app is also the instrument that reports it.
+     ------------------------------------------------------------------------ */
+  .hud {
+    position: absolute; top: 33px; left: 50%;
+    transform: translate(-50%, -7px) scale(.9);
+    opacity: 0; pointer-events: none; z-index: 40;
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 5px 14px 5px 11px; border-radius: 999px;
+    background: var(--band);
+    color: var(--band-fg);
+    font-size: 12.5px; font-weight: 510; letter-spacing: -0.005em;
+    box-shadow: 0 16px 36px -10px rgba(0,0,0,.62), inset 0 0 0 .5px rgba(255,255,255,.16);
+    transition: opacity .17s ease, transform .28s cubic-bezier(.2,1.35,.4,1);
+    /* deliberately not overflow:hidden — the peak bar's glow reaches past the
+       plate edge, and clipping it flattens the one piece of light in the mark */
+  }
+  .hud::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,0) 52%);
+  }
+  .hud > * { position: relative; z-index: 1; }
+  .hud.on { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  .hud .lbl { white-space: nowrap; }
+  .hud .sub { color: var(--band-muted); }
+
+  /* the mark */
+  .mk { display: block; flex: none; overflow: visible; }
+  .mk .b { fill: #e3e8f1; }
+
+  /* study panel */
+  .study {
+    display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: center;
+    background: var(--band); border-radius: 12px; padding: 26px 28px; position: relative;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.09);
+    overflow: hidden;
+  }
+  .study::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,0) 44%);
+  }
+  .study > * { position: relative; z-index: 1; }
+  .study dl { display: grid; gap: 9px; }
+  .study dt { color: #fff; font-size: 12.5px; font-weight: 550; }
+  .study dd { color: rgba(238,241,247,.62); font-size: 12px; line-height: 1.5; margin-top: 1px; }
+  .study .lag { color: #8fc0ff; font-family: var(--font-mono); font-size: 11.5px; }
+
+  .appwin { position: absolute; left: 96px; top: 74px; right: 96px; bottom: 42px; border-radius: 10px; overflow: hidden; }
+  .doc { padding: 26px 30px; height: 100%; }
+  .doc .ln { height: 9px; border-radius: 4px; background: var(--meter-idle); margin-bottom: 11px; }
+  .caret { display: inline-block; width: 1.5px; height: 15px; background: var(--peak-solid); vertical-align: -3px; animation: blink 1.05s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0 } }
+
+  .specimens { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .spec {
+    display: inline-flex; align-items: center; gap: 10px; position: relative;
+    padding: 5px 14px 5px 11px; border-radius: 999px;
+    background: var(--band); color: var(--band-fg);
+    font-size: 12.5px; font-weight: 510;
+    box-shadow: inset 0 0 0 .5px rgba(255,255,255,.16);
+  }
+  .spec::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,0) 52%);
+  }
+  .spec > * { position: relative; z-index: 1; }
+  .spec .sub { color: var(--band-muted); }
+  .spec kbd {
+    background: rgba(255,255,255,.2); border: 0; color: #fff; box-shadow: none;
+    min-width: 19px; height: 19px; border-radius: 5px; display: inline-flex;
+    align-items: center; justify-content: center; font-size: 11px; font-weight: 550; padding: 0 5px;
+  }
+  .sizes { display: flex; align-items: flex-end; gap: 26px; }
+  .oldsize { width: 108px; height: 108px; border-radius: 20px; border: 1.5px dashed var(--border); display: grid; place-items: center; color: var(--muted); font-size: 10.5px; text-align: center; }
+</style>
+</head>
+<body>
+
+<header class="pres">
+  <a class="home" href="index.html"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 2.5 3.5 6 7 9.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Concepts</a>
+  <div class="crumb"><b>01 · Level</b><span>Listening overlay</span></div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="Appearance">
+    <button data-set-appearance="light">Light</button>
+    <button data-set-appearance="dark">Dark</button>
+  </div>
+</header>
+
+<!-- shared paint for every mark on the page -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="pk" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#9cc8ff"/><stop offset="1" stop-color="#2b8bff"/>
+  </linearGradient>
+  <radialGradient id="hl">
+    <stop offset="0" stop-color="#4da3ff" stop-opacity=".95"/>
+    <stop offset="1" stop-color="#4da3ff" stop-opacity="0"/>
+  </radialGradient>
+  <filter id="gl" x="-160%" y="-160%" width="420%" height="420%">
+    <feGaussianBlur stdDeviation="2" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs></svg>
+
+<main class="stage">
+<div class="stage-rail">
+
+<section style="width:min(1080px,100%)">
+  <div class="tag">7 · Listening overlay — the mark is the meter</div>
+
+  <div class="desktop" style="min-height:430px;position:relative">
+    <div class="notch"></div>
+    <div class="menubar">
+      <span class="apple"><svg width="13" height="15" viewBox="0 0 13 15" fill="currentColor"><path d="M10.6 7.9c0-1.6 1.3-2.4 1.4-2.4-.8-1.1-2-1.3-2.4-1.3-1-.1-2 .6-2.5.6s-1.3-.6-2.2-.6c-1.1 0-2.2.7-2.7 1.7-1.2 2-.3 5 .8 6.6.6.8 1.2 1.7 2.1 1.7.9 0 1.2-.5 2.2-.5s1.3.5 2.2.5c.9 0 1.5-.8 2-1.6.7-.9.9-1.8.9-1.9 0 0-1.8-.7-1.8-2.8zM9 3.1c.5-.6.8-1.4.7-2.2-.7 0-1.6.5-2.1 1.1-.4.5-.8 1.3-.7 2.1.8.1 1.6-.4 2.1-1z"/></svg></span>
+      <div class="mb-menus"><b>Notes</b><span>File</span><span>Edit</span><span>Format</span></div>
+      <div class="mb-right"><span class="mb-clock">Fri 14 Aug&nbsp;&nbsp;14:44</span></div>
+    </div>
+
+    <div class="hud" id="hud" role="status" aria-live="polite">
+      <svg class="mk" id="hudMark" viewBox="0 0 30 26" width="30" height="26">
+        <ellipse data-halo cx="15" cy="13" rx="10" ry="9" fill="url(#hl)" opacity="0"/>
+        <rect class="b" data-bar x="3"    y="9"   width="4.4" height="8"  rx="2.2"/>
+        <rect      data-bar x="12.8" y="5.5" width="4.4" height="15" rx="2.2" fill="url(#pk)" filter="url(#gl)"/>
+        <rect class="b" data-bar x="22.6" y="7.5" width="4.4" height="11" rx="2.2"/>
+      </svg>
+      <span class="lbl" id="hudLbl">Listening</span>
+    </div>
+
+    <div class="win appwin">
+      <div class="win-bar"><div class="tl"><i></i><i></i><i></i></div>
+        <div class="win-bar-inner"><div class="win-title">Release notes — Notes</div></div></div>
+      <div class="doc">
+        <div class="ln" style="width:62%"></div>
+        <div class="ln" style="width:88%"></div>
+        <div class="ln" style="width:40%;margin-bottom:20px"></div>
+        <div id="docText" style="font-size:14px;line-height:1.6;min-height:44px"><span class="caret"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:18px;gap:12px;justify-content:center">
+    <button class="btn primary" id="talk">Hold to talk</button>
+    <span class="hint">or hold the <span class="mono">⌥</span> key. Notes stays frontmost throughout — the overlay never takes focus.</span>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------ the mark study -- -->
+<section style="width:min(880px,100%)">
+  <div class="tag">How the three bars move</div>
+
+  <div class="study">
+    <svg class="mk" id="studyMark" viewBox="0 0 30 26" width="132" height="114">
+      <ellipse data-halo cx="15" cy="13" rx="10" ry="9" fill="url(#hl)" opacity="0"/>
+      <rect class="b" data-bar x="3"    y="9"   width="4.4" height="8"  rx="2.2"/>
+      <rect      data-bar x="12.8" y="5.5" width="4.4" height="15" rx="2.2" fill="url(#pk)" filter="url(#gl)"/>
+      <rect class="b" data-bar x="22.6" y="7.5" width="4.4" height="11" rx="2.2"/>
+    </svg>
+    <dl>
+      <div><dt>The peak bar reads now</dt>
+        <dd>The blue centre bar is the live input level, growing from the middle axis in both directions. It is the only bar with a glow, and the glow tracks amplitude — a microphone hearing nothing sits flat and dark.</dd></div>
+      <div><dt>The silver bars are the same signal, delayed</dt>
+        <dd>Left replays the level from <span class="lag">70&nbsp;ms</span> ago, right from <span class="lag">130&nbsp;ms</span> ago. Nothing is random: a syllable enters at the centre and travels outward, so the mark ripples in time with your voice instead of jittering.</dd></div>
+      <div><dt>At rest it is exactly the icon</dt>
+        <dd>Between dictations the bars settle back to the icon's own proportions. The overlay never becomes a different object — it is the app icon breathing.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section style="width:min(880px,100%)">
+  <div class="tag">Every state, carried by the same three bars</div>
+  <div class="win"><div class="win-body" style="display:grid;gap:22px">
+    <div class="specimens">
+      <span class="spec">
+        <svg class="mk" id="sp1" viewBox="0 0 30 26" width="30" height="26">
+          <ellipse data-halo cx="15" cy="13" rx="10" ry="9" fill="url(#hl)" opacity="0"/>
+          <rect class="b" data-bar x="3" y="9" width="4.4" height="8" rx="2.2"/>
+          <rect data-bar x="12.8" y="5.5" width="4.4" height="15" rx="2.2" fill="url(#pk)" filter="url(#gl)"/>
+          <rect class="b" data-bar x="22.6" y="7.5" width="4.4" height="11" rx="2.2"/>
+        </svg>Listening</span>
+
+      <span class="spec">
+        <svg class="mk" id="sp2" viewBox="0 0 30 26" width="30" height="26">
+          <rect class="b" data-bar x="3" y="10.8" width="4.4" height="4.4" rx="2.2"/>
+          <rect data-bar x="12.8" y="10.8" width="4.4" height="4.4" rx="2.2" fill="url(#pk)"/>
+          <rect class="b" data-bar x="22.6" y="10.8" width="4.4" height="4.4" rx="2.2"/>
+        </svg>Transcribing…</span>
+
+      <span class="spec">
+        <svg class="mk" viewBox="0 0 30 26" width="30" height="26">
+          <rect class="b" x="3" y="9" width="4.4" height="8" rx="2.2"/>
+          <rect x="12.8" y="5.5" width="4.4" height="15" rx="2.2" fill="url(#pk)"/>
+          <rect class="b" x="22.6" y="7.5" width="4.4" height="11" rx="2.2"/>
+        </svg>Pasted into Notes</span>
+
+      <span class="spec">
+        <svg class="mk" viewBox="0 0 30 26" width="30" height="26">
+          <rect class="b" x="3" y="9" width="4.4" height="8" rx="2.2"/>
+          <rect x="12.8" y="5.5" width="4.4" height="15" rx="2.2" fill="url(#pk)"/>
+          <rect class="b" x="22.6" y="7.5" width="4.4" height="11" rx="2.2"/>
+        </svg>Copied — press <kbd>⌘V</kbd></span>
+
+      <span class="spec">
+        <svg class="mk" viewBox="0 0 30 26" width="30" height="26" opacity=".45">
+          <rect class="b" x="3" y="10.8" width="4.4" height="4.4" rx="2.2"/>
+          <rect class="b" x="12.8" y="10.8" width="4.4" height="4.4" rx="2.2"/>
+          <rect class="b" x="22.6" y="10.8" width="4.4" height="4.4" rx="2.2"/>
+        </svg><span class="sub">Nothing heard</span></span>
+
+      <span class="spec">
+        <svg class="mk" viewBox="0 0 30 26" width="30" height="26">
+          <rect class="b" x="3" y="10.8" width="4.4" height="4.4" rx="2.2" opacity=".45"/>
+          <rect x="12.8" y="10.8" width="4.4" height="4.4" rx="2.2" fill="#ff5f52"/>
+          <rect class="b" x="22.6" y="10.8" width="4.4" height="4.4" rx="2.2" opacity=".45"/>
+        </svg>Model server not responding</span>
+    </div>
+
+    <div class="sizes" style="border-top:1px solid var(--border);padding-top:20px">
+      <div class="oldsize">108 × 108<br>today</div>
+      <div style="display:grid;gap:9px">
+        <span class="spec" style="align-self:flex-start">
+          <svg class="mk" viewBox="0 0 30 26" width="30" height="26">
+            <rect class="b" x="3" y="9" width="4.4" height="8" rx="2.2"/>
+            <rect x="12.8" y="5.5" width="4.4" height="15" rx="2.2" fill="url(#pk)"/>
+            <rect class="b" x="22.6" y="7.5" width="4.4" height="11" rx="2.2"/>
+          </svg>Listening</span>
+        <span class="caps muted">approx. 135 × 36 — a fifth of the area, and it can speak</span>
+      </div>
+    </div>
+  </div></div>
+
+  <div class="cap" style="margin-top:20px">
+    <h4>What changed from the first pass</h4>
+    <ul>
+      <li><b>The dot and the generic meter are gone.</b> A coloured status dot next to a row of bars was two symbols doing one job. Now there is one symbol — the app's own mark — and its shape carries the state.</li>
+      <li><b>The plate is the icon's ground.</b> Same slate gradient, same top sheen, so the thing that appears under the notch is recognisably this app before you read a word of it.</li>
+      <li><b>Motion has a rule, not a random walk.</b> Centre reads live, the flanks replay it 70 and 130&nbsp;ms late. That is what makes it read as a voice passing through rather than three bars twitching.</li>
+      <li><b>Transcribing is the menu-bar glyph, enlarged.</b> The bars collapse to three stubs and cycle — the same shape the status item shows for the same state, so the two surfaces teach each other.</li>
+    </ul>
+    <h4 style="margin-top:16px">Rules it still obeys</h4>
+    <ul>
+      <li><b>It never becomes key window.</b> Functional, not cosmetic: focus theft would redirect the dictation into the overlay. Notes keeps its active title bar the whole time.</li>
+      <li><b>It carries text.</b> "Model server not responding" and "Copied — press ⌘V" are outcomes the sound cues alone cannot express.</li>
+      <li><b>It is the second channel for a hidden status item</b> — all six states resolve here, so a full menu bar costs the user nothing.</li>
+      <li>Docked under the notch on notched displays, top-centre otherwise. Springs in, fades out; state changes stop snapping.</li>
+    </ul>
+  </div>
+</section>
+
+</div>
+</main>
+
+<script src="js/shout.js"></script>
+<script>
+/* ==========================================================================
+   MarkMeter — drives the three bars of the app mark from an input envelope.
+   Bars grow from the centre axis. The centre bar reads the current level; the
+   outer two replay the same envelope a few frames late, so a syllable travels
+   outward through the mark instead of all three jumping together.
+   ========================================================================== */
+function MarkMeter(svg, opts) {
+  opts = opts || {};
+  var bars = svg.querySelectorAll('[data-bar]');
+  var halo = svg.querySelector('[data-halo]');
+  var REST = [8, 15, 11];        // the icon's own proportions
+  var STUB = 4.4;                // transcribing
+  var MAX  = opts.max || 24;
+  var MID  = 13;
+  var LAG_L = 4, LAG_R = 8;      // frames ≈ 70 ms / 130 ms at 60 fps
+
+  var hist = [], i;
+  for (i = 0; i < 16; i++) hist.push(0);
+  var hi = 0, t = 0, env = 0, target = 0, cyc = 0, flash = 0;
+  var mode = opts.mode || 'rest';
+
+  function set(n, h, op) {
+    var b = bars[n];
+    b.setAttribute('height', h.toFixed(2));
+    b.setAttribute('y', (MID - h / 2).toFixed(2));
+    if (op != null) b.setAttribute('opacity', op);
+  }
+  function past(lag) { return hist[(hi - lag + hist.length * 2) % hist.length]; }
+
+  function frame() {
+    if (mode === 'rec') {
+      t += 0.05;
+      if (Math.random() < 0.10) target = Math.random();
+      env += (target - env) * 0.17;
+      var speech = Math.max(0, Math.sin(t * 1.9) * 0.42 + Math.sin(t * 0.7) * 0.32 + 0.34);
+      var e = Math.max(0, Math.min(1, env * speech));
+      hi = (hi + 1) % hist.length;
+      hist[hi] = e;
+      set(0, REST[0] + (MAX - REST[0]) * past(LAG_L), 1);
+      set(1, REST[1] + (MAX - REST[1]) * e, 1);
+      set(2, REST[2] + (MAX - REST[2]) * past(LAG_R), 1);
+      if (halo) {
+        halo.setAttribute('rx', (9 + e * 14).toFixed(1));
+        halo.setAttribute('ry', (8 + e * 11).toFixed(1));
+        halo.setAttribute('opacity', (0.08 + e * 0.36).toFixed(3));
+      }
+    } else if (mode === 'work') {
+      cyc += 0.055;
+      var on = Math.floor(cyc) % 3;
+      for (var n = 0; n < 3; n++) set(n, n === on ? 9 : STUB, n === on ? 1 : 0.42);
+      if (halo) halo.setAttribute('opacity', '0.05');
+    } else {
+      for (var m = 0; m < 3; m++) {
+        var cur = parseFloat(bars[m].getAttribute('height')) || REST[m];
+        set(m, cur + (REST[m] - cur) * 0.18, 1);
+      }
+      if (halo) {
+        var o = parseFloat(halo.getAttribute('opacity')) || 0;
+        halo.setAttribute('opacity', (o + (flash - o) * 0.14).toFixed(3));
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+
+  return {
+    rec:  function () { mode = 'rec'; env = 0; target = 0.75; },
+    work: function () { mode = 'work'; cyc = 0; },
+    rest: function (pulse) {
+      mode = 'rest';
+      if (pulse) { flash = 0.3; setTimeout(function () { flash = 0; }, 380); }
+      else flash = 0;
+    }
+  };
+}
+
+(function () {
+  var hud = document.getElementById('hud');
+  var lbl = document.getElementById('hudLbl');
+  var doc = document.getElementById('docText');
+  var mark = MarkMeter(document.getElementById('hudMark'));
+  var phase = 'idle', timer = null;
+  var LINE = 'Pushing the release to Thursday so QA gets a full day with the notarized build.';
+
+  /* study + first specimen run continuously so the motion is readable */
+  MarkMeter(document.getElementById('studyMark'), { mode: 'rec' });
+  MarkMeter(document.getElementById('sp1'), { mode: 'rec' });
+  MarkMeter(document.getElementById('sp2'), { mode: 'work' });
+
+  function start() {
+    if (phase !== 'idle') return;
+    phase = 'rec';
+    clearTimeout(timer);
+    doc.innerHTML = '<span class="caret"></span>';
+    lbl.textContent = 'Listening';
+    hud.classList.add('on');
+    mark.rec();
+  }
+
+  function end() {
+    if (phase !== 'rec') return;
+    phase = 'work';
+    lbl.textContent = 'Transcribing…';
+    mark.work();
+    timer = setTimeout(function () {
+      phase = 'done';
+      lbl.textContent = 'Pasted into Notes';
+      mark.rest(true);
+      var i = 0;
+      (function type() {
+        doc.innerHTML = SHOUT.esc(LINE.slice(0, i)) + '<span class="caret"></span>';
+        if (i++ < LINE.length) setTimeout(type, 14);
+      })();
+      timer = setTimeout(function () { hud.classList.remove('on'); phase = 'idle'; }, 1600);
+    }, 850);
+  }
+
+  SHOUT.hold(document.getElementById('talk'), start, end);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en" data-appearance="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Level · App icon &amp; menu-bar glyphs — shout</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/level.css">
+</head>
+<body>
+
+<header class="pres">
+  <a class="home" href="index.html">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 2.5 3.5 6 7 9.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Concepts
+  </a>
+  <div class="crumb"><b>01 · Level</b><span>App icon &amp; menu-bar glyphs</span></div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="Appearance">
+    <button data-set-appearance="light">Light</button>
+    <button data-set-appearance="dark">Dark</button>
+  </div>
+</header>
+
+<!-- ============================== icon symbols ============================ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ic-level" viewBox="0 0 128 128">
+    <defs>
+      <linearGradient id="lg-ground" x1="0" y1="0" x2="0.35" y2="1">
+        <stop offset="0" stop-color="#4c5468"/>
+        <stop offset="0.55" stop-color="#252b39"/>
+        <stop offset="1" stop-color="#14171f"/>
+      </linearGradient>
+      <linearGradient id="lg-sheen" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ffffff" stop-opacity="0.20"/>
+        <stop offset="0.42" stop-color="#ffffff" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="lg-bar" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ffffff"/>
+        <stop offset="1" stop-color="#cfd6e4"/>
+      </linearGradient>
+      <linearGradient id="lg-peak" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#7db6ff"/>
+        <stop offset="1" stop-color="#0a6cf5"/>
+      </linearGradient>
+    </defs>
+    <rect width="128" height="128" rx="28.6" fill="url(#lg-ground)"/>
+    <rect width="128" height="128" rx="28.6" fill="url(#lg-sheen)"/>
+    <rect x="28" y="47" width="16" height="34" rx="8" fill="url(#lg-bar)"/>
+    <rect x="56" y="33" width="16" height="62" rx="8" fill="url(#lg-peak)"/>
+    <rect x="84" y="41" width="16" height="46" rx="8" fill="url(#lg-bar)"/>
+  </symbol>
+
+  <!-- 20 pt menu-bar glyphs. Single colour, template-safe. -->
+  <symbol id="g-idle" viewBox="0 0 20 20"><g fill="currentColor"><rect x="4" y="7.5" width="2.6" height="5" rx="1.3"/><rect x="8.7" y="5" width="2.6" height="10" rx="1.3"/><rect x="13.4" y="6.5" width="2.6" height="7" rx="1.3"/></g></symbol>
+  <symbol id="g-rec" viewBox="0 0 20 20"><g fill="currentColor"><rect x="4" y="5.5" width="2.6" height="9" rx="1.3"/><rect x="8.7" y="3" width="2.6" height="14" rx="1.3"/><rect x="13.4" y="4.5" width="2.6" height="11" rx="1.3"/></g><circle cx="17.2" cy="3.4" r="2.6" fill="#e5372c"/></symbol>
+  <symbol id="g-work" viewBox="0 0 20 20"><g fill="currentColor"><rect x="4" y="8.6" width="2.6" height="2.8" rx="1.3"/><rect x="8.7" y="8.6" width="2.6" height="2.8" rx="1.3"/><rect x="13.4" y="8.6" width="2.6" height="2.8" rx="1.3"/></g></symbol>
+  <symbol id="g-off" viewBox="0 0 20 20"><g fill="currentColor" opacity=".55"><rect x="4" y="7.5" width="2.6" height="5" rx="1.3"/><rect x="8.7" y="5" width="2.6" height="10" rx="1.3"/><rect x="13.4" y="6.5" width="2.6" height="7" rx="1.3"/></g><path d="M3.2 16.4 16.8 3.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="g-perm" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4.2" y="7.7" width="2.2" height="4.6" rx="1.1"/><rect x="8.9" y="5.2" width="2.2" height="9.6" rx="1.1"/><rect x="13.6" y="6.7" width="2.2" height="6.6" rx="1.1"/></g></symbol>
+  <symbol id="g-err" viewBox="0 0 20 20"><g fill="currentColor" opacity=".45"><rect x="4" y="7.5" width="2.6" height="5" rx="1.3"/><rect x="8.7" y="5" width="2.6" height="10" rx="1.3"/><rect x="13.4" y="6.5" width="2.6" height="7" rx="1.3"/></g><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5.6 5.6 14.4 14.4"/><path d="M14.4 5.6 5.6 14.4"/></g></symbol>
+</svg>
+
+<main class="stage">
+<div class="stage-rail">
+
+  <!-- ------------------------------------------------------ app icon ----- -->
+  <section style="width:min(900px,100%)">
+    <div class="tag">1 · App icon</div>
+    <div class="win"><div class="win-body" style="padding:34px 32px">
+      <div class="icon-row">
+        <div class="icon-cell"><svg class="appicon" width="152" height="152"><use href="#ic-level"/></svg><span class="sz">1024 pt</span></div>
+        <div class="icon-cell"><svg class="appicon" width="96" height="96"><use href="#ic-level"/></svg><span class="sz">512</span></div>
+        <div class="icon-cell"><svg class="appicon" width="64" height="64"><use href="#ic-level"/></svg><span class="sz">128</span></div>
+        <div class="icon-cell"><svg class="appicon" width="48" height="48"><use href="#ic-level"/></svg><span class="sz">64</span></div>
+        <div class="icon-cell"><svg class="appicon" width="32" height="32"><use href="#ic-level"/></svg><span class="sz">32</span></div>
+        <div class="icon-cell"><svg class="appicon" width="16" height="16"><use href="#ic-level"/></svg><span class="sz">16</span></div>
+      </div>
+    </div></div>
+    <div class="cap" style="margin-top:18px">
+      <h4>Why a meter, not a microphone</h4>
+      <p>The current icon loses its grille slots and chevron below 64&nbsp;pt because the metaphor needs detail to survive. Three rounded bars have nothing to lose — the 16&nbsp;pt Finder rendering above is the same drawing, not a simplified variant. It also stops looking like every other audio utility: this is not a mic, it is what the mic is <em>doing</em>.</p>
+      <p style="margin-top:9px">Three rects, one rounded rect, two linear gradients — expressible directly in <span class="mono">CoreGraphics</span>, so <span class="mono">make_icons.py</span> keeps its job. The single blue peak is the only chromatic element and it is the same hue as the app's accent.</p>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------ menu-bar glyph ----- -->
+  <section style="width:min(900px,100%)">
+    <div class="tag">2 · Menu-bar icon — six states, six glyphs</div>
+
+    <div class="desktop" style="margin-bottom:22px">
+      <div class="menubar">
+        <span class="apple"><svg width="13" height="15" viewBox="0 0 13 15" fill="currentColor"><path d="M10.6 7.9c0-1.6 1.3-2.4 1.4-2.4-.8-1.1-2-1.3-2.4-1.3-1-.1-2 .6-2.5.6s-1.3-.6-2.2-.6c-1.1 0-2.2.7-2.7 1.7-1.2 2-.3 5 .8 6.6.6.8 1.2 1.7 2.1 1.7.9 0 1.2-.5 2.2-.5s1.3.5 2.2.5c.9 0 1.5-.8 2-1.6.7-.9.9-1.8.9-1.9 0 0-1.8-.7-1.8-2.8zM9 3.1c.5-.6.8-1.4.7-2.2-.7 0-1.6.5-2.1 1.1-.4.5-.8 1.3-.7 2.1.8.1 1.6-.4 2.1-1z"/></svg></span>
+        <div class="mb-menus"><b>Xcode</b><span>File</span><span>Edit</span><span>View</span><span>Product</span></div>
+        <div class="mb-right">
+          <span class="glyph" style="color:#fff"><svg width="20" height="20"><use href="#g-idle"/></svg></span>
+          <span class="glyph"><svg width="17" height="17" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm0 1.6A5.4 5.4 0 1 1 4.6 10 5.4 5.4 0 0 1 10 4.6z"/></svg></span>
+          <span class="mb-clock">Fri 14 Aug&nbsp;&nbsp;14:41</span>
+        </div>
+      </div>
+      <div style="height:120px;display:grid;place-items:center">
+        <span class="caps" style="color:rgba(255,255,255,.55)">idle, in a real menu bar</span>
+      </div>
+    </div>
+
+    <div class="win"><div class="win-body">
+      <table class="state-table">
+        <thead><tr><th class="glyph-cell">Glyph</th><th>State</th><th>Reads as</th><th>Second channel</th></tr></thead>
+        <tbody>
+          <tr><td><span class="glyph-box"><svg width="20" height="20"><use href="#g-idle"/></svg></span></td>
+              <td>idle</td><td class="muted">Meter at rest. Ready.</td><td class="muted">—</td></tr>
+          <tr><td><span class="glyph-box"><svg width="20" height="20"><use href="#g-rec"/></svg></span></td>
+              <td>recording</td><td class="muted">Bars at speaking height. Red dot opts out of template mode, as today.</td><td class="muted">Overlay + rising tone</td></tr>
+          <tr><td><span class="glyph-box"><svg width="20" height="20" id="workGlyph"><use href="#g-work"/></svg></span></td>
+              <td>transcribing</td><td class="muted">Bars collapse to three equal stubs and cycle. <b>No longer identical to idle.</b></td><td class="muted">Overlay turns amber</td></tr>
+          <tr><td><span class="glyph-box"><svg width="20" height="20"><use href="#g-off"/></svg></span></td>
+              <td>disabled</td><td class="muted">Meter dimmed, struck through. The user did this on purpose.</td><td class="muted">Dropdown checkbox is off</td></tr>
+          <tr><td><span class="glyph-box"><svg width="20" height="20"><use href="#g-perm"/></svg></span></td>
+              <td>needs-permission</td><td class="muted">Hollow meter — the shape is there, the substance is not.</td><td class="muted">Setup window opens</td></tr>
+          <tr><td><span class="glyph-box"><svg width="20" height="20"><use href="#g-err"/></svg></span></td>
+              <td>error</td><td class="muted">Struck out. Something failed, and it was not the user.</td><td class="muted">Two low tones + overlay text</td></tr>
+        </tbody>
+      </table>
+    </div></div>
+
+    <div class="cap" style="margin-top:18px">
+      <h4>Constraints honoured</h4>
+      <ul>
+        <li>Every glyph is one colour on transparent at 20&nbsp;×&nbsp;20&nbsp;pt — valid <span class="mono">NSImage</span> template images, so macOS still inverts them for dark menu bars and open menus.</li>
+        <li>The recording red dot is the single template opt-out, exactly as the app does today.</li>
+        <li>All six are distinguishable by <em>shape</em>, not colour — which is what matters when the icon is white on a bright wallpaper.</li>
+        <li>None of this is load-bearing: the menu bar can hide the item at any moment, so the overlay and sound cues carry the same six states independently.</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+</main>
+
+<script src="js/shout.js"></script>
+<script>
+  /* transcribing glyph cycles so the difference from idle is felt, not read */
+  (function () {
+    var box = document.getElementById('workGlyph');
+    if (!box) return;
+    var i = 0;
+    setInterval(function () {
+      var bars = box.querySelectorAll('rect');
+      box.innerHTML = '<g fill="currentColor">' +
+        [0, 1, 2].map(function (n) {
+          var tall = n === i % 3;
+          var h = tall ? 7 : 2.8, y = 10 - h / 2;
+          return '<rect x="' + (4 + n * 4.7) + '" y="' + y + '" width="2.6" height="' + h + '" rx="1.3"/>';
+        }).join('') + '</g>';
+      i++;
+    }, 260);
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en" data-appearance="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Level · Menu-bar dropdown — shout</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/level.css">
+<style>
+  /* Status header sits above the first separator — it is not a menu item and
+     must not take the selection highlight. */
+  .status-head { padding: 11px 11px 12px; display: grid; gap: 9px; }
+  .status-head .line { display: flex; align-items: center; gap: 9px; }
+  .status-head .state { font-weight: 590; letter-spacing: -0.005em; }
+  .status-head .how { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11.5px; }
+  .status-head .how .kbd { height: 19px; min-width: 19px; font-size: 11px; }
+  .flyout {
+    position: absolute; left: 100%; top: 0; margin-left: -4px;
+    width: 320px; padding: 5px; border-radius: 9px;
+    background: var(--menu-bg); border: 1px solid var(--menu-border);
+    box-shadow: 0 22px 50px -12px rgba(0,0,0,.5);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+  }
+  .flyout .menu-item { align-items: flex-start; }
+  .flyout .rtxt {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; font-size: 12.5px; line-height: 1.38;
+  }
+  .flyout .rtime { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); flex: none; width: 38px; padding-top: 1px; }
+  .flyout .menu-item:hover .rtime { color: inherit; opacity: .8; }
+  .has-sub { position: relative; }
+  .toast {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: 26px; padding: 7px 14px; border-radius: 8px;
+    background: rgba(20,20,24,.86); color: #fff; font-size: 12px;
+    backdrop-filter: blur(20px); opacity: 0; transition: opacity .18s ease;
+  }
+  .toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header class="pres">
+  <a class="home" href="index.html"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 2.5 3.5 6 7 9.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Concepts</a>
+  <div class="crumb"><b>01 · Level</b><span>Menu-bar dropdown</span></div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="Appearance">
+    <button data-set-appearance="light">Light</button>
+    <button data-set-appearance="dark">Dark</button>
+  </div>
+</header>
+
+<main class="stage">
+<div class="stage-rail">
+
+<section style="width:min(1080px,100%)">
+  <div class="tag">3 · Menu-bar dropdown — 16 rows down to 6</div>
+
+  <div class="desktop" style="min-height:520px">
+    <div class="menubar">
+      <span class="apple"><svg width="13" height="15" viewBox="0 0 13 15" fill="currentColor"><path d="M10.6 7.9c0-1.6 1.3-2.4 1.4-2.4-.8-1.1-2-1.3-2.4-1.3-1-.1-2 .6-2.5.6s-1.3-.6-2.2-.6c-1.1 0-2.2.7-2.7 1.7-1.2 2-.3 5 .8 6.6.6.8 1.2 1.7 2.1 1.7.9 0 1.2-.5 2.2-.5s1.3.5 2.2.5c.9 0 1.5-.8 2-1.6.7-.9.9-1.8.9-1.9 0 0-1.8-.7-1.8-2.8zM9 3.1c.5-.6.8-1.4.7-2.2-.7 0-1.6.5-2.1 1.1-.4.5-.8 1.3-.7 2.1.8.1 1.6-.4 2.1-1z"/></svg></span>
+      <div class="mb-menus"><b>Mail</b><span>File</span><span>Edit</span><span>View</span><span>Mailbox</span><span>Message</span></div>
+      <div class="mb-right">
+        <div class="mb-status" id="statusItem" role="button" tabindex="0" aria-label="shout">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <rect x="4" y="7.5" width="2.6" height="5" rx="1.3"/><rect x="8.7" y="5" width="2.6" height="10" rx="1.3"/><rect x="13.4" y="6.5" width="2.6" height="7" rx="1.3"/>
+          </svg>
+        </div>
+        <span class="mb-clock">Fri 14 Aug&nbsp;&nbsp;14:41</span>
+      </div>
+    </div>
+
+    <!-- dropdown -->
+    <div id="menuPanel" hidden style="position:absolute;top:29px;right:96px;z-index:25">
+      <div class="menu">
+        <div class="status-head">
+          <div class="line">
+            <span class="dot ok" id="stDot"></span>
+            <span class="state" id="stText">Ready</span>
+            <span class="grow"></span>
+            <span class="meter" id="menuMeter" aria-hidden="true"></span>
+          </div>
+          <div class="how" id="stHow">
+            Hold <kbd class="kbd">Right ⌥</kbd><kbd class="kbd">Right ⌘</kbd> and speak
+          </div>
+        </div>
+        <div class="menu-sep"></div>
+
+        <div class="menu-item" id="rowEnabled" role="menuitemcheckbox" aria-checked="true">
+          <span class="tick" id="tickEnabled">✓</span> Enabled
+        </div>
+
+        <div class="menu-item has-sub" data-sub="subRecent">
+          <span class="tick"></span> Recent transcriptions
+          <span class="trail">▸</span>
+          <div class="flyout" id="subRecent" hidden></div>
+        </div>
+
+        <div class="menu-sep"></div>
+        <div class="menu-item"><span class="tick"></span> Settings &amp; History… <span class="trail">⌘,</span></div>
+        <div class="menu-item"><span class="tick"></span> Re-run Setup Check…</div>
+
+        <div class="menu-sep"></div>
+        <div class="menu-item has-sub" data-sub="subAdv">
+          <span class="tick"></span> Advanced
+          <span class="trail">▸</span>
+          <div class="flyout" id="subAdv" hidden style="width:240px">
+            <div class="menu-item"><span class="tick"></span> Edit Config…</div>
+            <div class="menu-item"><span class="tick"></span> Reload Config</div>
+            <div class="menu-item"><span class="tick"></span> Restart Model Server</div>
+            <div class="menu-sep"></div>
+            <div class="menu-item"><span class="tick"></span> Open Log</div>
+            <div class="menu-item"><span class="tick"></span> Check for Updates…</div>
+          </div>
+        </div>
+
+        <div class="menu-sep"></div>
+        <div class="menu-item"><span class="tick"></span> Quit shout <span class="trail">⌘Q</span></div>
+      </div>
+    </div>
+
+    <div style="height:200px;display:grid;place-items:center;color:rgba(255,255,255,.5)" id="hintZone">
+      <span class="caps">click the meter in the menu bar</span>
+    </div>
+    <div class="toast" id="toast">Copied to clipboard</div>
+  </div>
+
+  <div class="cap" style="margin-top:20px">
+    <h4>What moved and why</h4>
+    <ul>
+      <li><b>The status line became a header, not a row.</b> It no longer truncates to the menu width, it carries the live input meter, and it spells the chord out in key caps instead of prose — so the one thing a user forgets is the one thing the menu leads with.</li>
+      <li><b>Five diagnostics went behind Advanced.</b> Edit Config, Reload Config, Restart Model Server, Open Log and Check for Updates are still one hover away; they no longer sit between Enabled and Quit.</li>
+      <li><b>Recent got a preview.</b> Two lines and a timestamp per entry instead of a truncated single line, because a transcription is usually a sentence, not a label.</li>
+      <li><b>Sound cues and Open at Login moved to Settings → General.</b> They are preferences set once, not actions taken daily.</li>
+      <li>Six rows, three groups, one destructive action isolated at the bottom.</li>
+    </ul>
+  </div>
+</section>
+
+</div>
+</main>
+
+<script src="js/shout.js"></script>
+<script>
+(function () {
+  var item = document.getElementById('statusItem');
+  var panel = document.getElementById('menuPanel');
+  var hint = document.getElementById('hintZone');
+  SHOUT.menu(item, panel);
+  item.addEventListener('click', function () { hint.style.visibility = panel.hidden ? 'visible' : 'hidden'; });
+
+  /* live meter in the status header */
+  var meter = SHOUT.meter(document.getElementById('menuMeter'), { bars: 11, min: 3, max: 15 });
+  meter.flat(3);
+
+  /* Recent submenu, built from the shared corpus (skip the ignored press) */
+  var sub = document.getElementById('subRecent');
+  SHOUT.history.filter(function (h) { return h.text; }).slice(0, 8).forEach(function (h) {
+    var row = document.createElement('div');
+    row.className = 'menu-item';
+    row.innerHTML = '<span class="rtime">' + h.t + '</span><span class="rtxt">' + SHOUT.esc(h.text) + '</span>';
+    row.addEventListener('click', function (e) {
+      e.stopPropagation();
+      SHOUT.copy(h.text);
+      var t = document.getElementById('toast');
+      t.classList.add('on');
+      setTimeout(function () { t.classList.remove('on'); }, 1400);
+    });
+    sub.appendChild(row);
+  });
+
+  /* submenu hover */
+  document.querySelectorAll('.has-sub').forEach(function (row) {
+    var fly = document.getElementById(row.getAttribute('data-sub'));
+    row.addEventListener('mouseenter', function () {
+      document.querySelectorAll('.flyout').forEach(function (f) { f.hidden = true; });
+      fly.hidden = false;
+    });
+    row.addEventListener('mouseleave', function (e) {
+      if (fly.contains(e.relatedTarget)) return;
+      fly.hidden = true;
+    });
+  });
+
+  /* Enabled toggle drives the header, the way the real state model does */
+  var on = true;
+  var rowEnabled = document.getElementById('rowEnabled');
+  rowEnabled.addEventListener('click', function (e) {
+    e.stopPropagation();
+    on = !on;
+    rowEnabled.setAttribute('aria-checked', String(on));
+    document.getElementById('tickEnabled').textContent = on ? '✓' : '';
+    document.getElementById('stText').textContent = on ? 'Ready' : 'Disabled';
+    document.getElementById('stDot').className = 'dot ' + (on ? 'ok' : 'work');
+    document.getElementById('stHow').innerHTML = on
+      ? 'Hold <kbd class="kbd">Right ⌥</kbd><kbd class="kbd">Right ⌘</kbd> and speak'
+      : 'The shortcut is suspended. shout stays running.';
+    document.getElementById('menuMeter').style.opacity = on ? '1' : '.35';
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en" data-appearance="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Level · Settings — Shortcut — shout</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/level.css">
+</head>
+<body>
+
+<header class="pres">
+  <a class="home" href="index.html"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 2.5 3.5 6 7 9.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Concepts</a>
+  <div class="crumb"><b>01 · Level</b><span>Settings — Shortcut</span></div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="Appearance">
+    <button data-set-appearance="light">Light</button>
+    <button data-set-appearance="dark">Dark</button>
+  </div>
+</header>
+
+<main class="stage">
+<div class="stage-rail">
+
+<section style="width:min(800px,100%)">
+  <div class="tag">5 · Settings — Shortcut</div>
+
+  <div class="win">
+    <div class="side-split">
+
+      <!-- ------------------------------------------------ source list --- -->
+      <nav class="sidebar band">
+        <div class="tl"><i></i><i></i><i></i></div>
+        <div class="lockup">
+          <span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="wordmark">shout</span>
+        </div>
+
+        <div class="sb-head">Capture</div>
+        <div class="sb-item" aria-current="page">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="4" width="13" height="8.5" rx="2"/><path d="M4.5 7h1M7.5 7h1M10.5 7h1M5 10h6" stroke-linecap="round"/></svg>
+          Shortcut
+        </div>
+        <div class="sb-item">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6.2v3.6M8 3.4v9.2M12 5.2v5.6"/></svg>
+          Audio
+        </div>
+
+        <div class="sb-head">Text</div>
+        <div class="sb-item">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4.6V8l2.4 1.6" stroke-linecap="round"/></svg>
+          History <span class="badge">241</span>
+        </div>
+        <div class="sb-item">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 5h4.6M10.5 5h3M2.5 11h2.6M8.5 11h5" stroke-linecap="round"/><circle cx="8.8" cy="5" r="1.5"/><circle cx="6.8" cy="11" r="1.5"/></svg>
+          Behaviour
+        </div>
+
+        <div class="sb-head">System</div>
+        <div class="sb-item">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="7" width="9" height="6.4" rx="1.8"/><path d="M5.8 7V5.4a2.2 2.2 0 0 1 4.4 0V7"/></svg>
+          Permissions
+        </div>
+        <div class="sb-version">Version 1.2.0</div>
+      </nav>
+
+      <!-- ------------------------------------------------------ pane ---- -->
+      <div class="pane">
+        <div class="pane-head">
+          <div>
+            <h2>Shortcut</h2>
+            <p>What shout listens for, and proof that it is hearing it.</p>
+          </div>
+        </div>
+
+        <div class="pane-body">
+
+          <div class="grp">
+            <h3>Activation</h3>
+            <div class="box">
+              <div class="r">
+                <label id="lblAct">Mode</label>
+                <div class="val">
+                  <div class="segmented" role="group" aria-labelledby="lblAct">
+                    <button type="button" data-act="hold" aria-pressed="true">Hold to talk</button>
+                    <button type="button" data-act="toggle" aria-pressed="false">Toggle</button>
+                  </div>
+                </div>
+              </div>
+              <p class="note" id="actHint">Recording runs for exactly as long as the keys are down. Release to transcribe.</p>
+              <div class="r">
+                <label>Ignore presses under</label>
+                <div class="val">
+                  <input class="input" type="text" value="180 ms" style="width:86px;font-variant-numeric:tabular-nums" aria-label="Minimum press duration">
+                  <span class="hint">Anything shorter returns the low blip instead of an empty transcription.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grp">
+            <h3>Keys</h3>
+            <div class="box">
+              <div class="r">
+                <label>Shortcut</label>
+                <div class="val">
+                  <span class="chord" id="chordOut"></span>
+                  <span class="grow"></span>
+                  <button class="btn" id="recBtn" aria-pressed="false">Change…</button>
+                </div>
+              </div>
+              <p class="note">Modifiers are side-aware, so <span class="mono">Right ⌥</span> is not <span class="mono">Left ⌥</span>. The chord builds as keys go down and commits when you let go, which is how <span class="mono">⌃ + Right ⌥</span> stays recordable.</p>
+            </div>
+          </div>
+
+          <div class="grp">
+            <h3>Reception</h3>
+            <div class="box">
+              <div class="r">
+                <label>Keys arriving</label>
+                <div class="val">
+                  <span class="recv" id="recv" data-live="false"><span class="dot"></span><span id="recvTxt">Not being pressed</span></span>
+                </div>
+              </div>
+              <div class="r">
+                <label>Audio arriving</label>
+                <div class="val">
+                  <span class="meter" id="devMeter" aria-label="Input level"></span>
+                  <span class="hint">MacBook Pro Microphone · 48 kHz</span>
+                </div>
+              </div>
+              <div class="r">
+                <label>Never arrived</label>
+                <div class="val">
+                  <span style="font-variant-numeric:tabular-nums" id="cLost">0</span>
+                  <span class="hint">Presses another app took first. That is a different fault from a wrong chord, and it is invisible today.</span>
+                </div>
+              </div>
+              <p class="note">Press <span class="mono">Right ⌥ + Right ⌘</span> now — both indicators are live while this window is open.</p>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="pane-foot">
+          <span class="ver">Changes apply immediately</span>
+          <span class="grow"></span>
+          <button class="btn quiet">Re-run Setup…</button>
+          <button class="btn danger">Quit shout</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="cap" style="margin-top:20px">
+    <h4>What the tab strip could not do</h4>
+    <ul>
+      <li><b>A source list scales; three tabs do not.</b> Once diagnostics come out of the menu bar there are more than three areas worth exposing, and the sidebar gives each one a name instead of burying it. It also gives History a badge, so the count is visible without opening it.</li>
+      <li><b>The sidebar is the icon's ground at full height</b>, with the lockup as its masthead — same size, same gradients and same position as in Setup and History. The mark's colours are the icon's own stops rather than approximations, so the logo in the window and the tile in the Dock are one object.</li>
+      <li><b>Rows live in grouped boxes.</b> Label outside, hairline-separated rows inside — the System Settings shape. Explanatory copy sits inside the box it belongs to instead of floating beside a field.</li>
+      <li><b>Reception is one group, not two scattered indicators.</b> "Are the keys arriving" and "is audio arriving" answer the same question — <em>why is nothing happening</em> — so they sit together, above the count of presses another app stole.</li>
+      <li><b>Blue is spent twice:</b> the selected sidebar row, and the receipt pill while the chord is held. The meter's hot bars are the same peak, doing the job they do in the icon.</li>
+    </ul>
+  </div>
+</section>
+
+</div>
+</main>
+
+<script src="js/shout.js"></script>
+<script>
+(function () {
+  /* activation mode */
+  document.querySelectorAll('[data-act]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('[data-act]').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
+      document.getElementById('actHint').textContent = b.dataset.act === 'hold'
+        ? 'Recording runs for exactly as long as the keys are down. Release to transcribe.'
+        : 'Press once to start, once more to stop. Useful for long dictation; easier to leave running by mistake.';
+    });
+  });
+
+  /* shortcut recorder */
+  var out = document.getElementById('chordOut');
+  var chord = ['Right ⌥', 'Right ⌘'];
+  var rec = SHOUT.recorder(document.getElementById('recBtn'), out, function (keys) {
+    chord = keys.length ? keys : chord;
+    rec.paint(chord, false);
+  });
+  rec.paint(chord, false);
+
+  /* live receipt — lights the moment shout receives exactly this chord */
+  var held = Object.create(null);
+  function label(e) {
+    var S = { Meta: '⌘', Control: '⌃', Alt: '⌥', Shift: '⇧' }, c = e.code || '';
+    if (S[e.key]) return (/Left$/.test(c) ? 'Left ' : (/Right$/.test(c) ? 'Right ' : '')) + S[e.key];
+    return e.key === ' ' ? 'Space' : (e.key && e.key.length === 1 ? e.key.toUpperCase() : e.key);
+  }
+  function refresh() {
+    var live = chord.length && chord.every(function (k) { return held[k]; });
+    document.getElementById('recv').setAttribute('data-live', String(!!live));
+    document.getElementById('recvTxt').textContent = live ? 'shout is receiving this' : 'Not being pressed';
+  }
+  document.addEventListener('keydown', function (e) { held[label(e)] = true; refresh(); });
+  document.addEventListener('keyup', function (e) { delete held[label(e)]; refresh(); });
+  window.addEventListener('blur', function () { held = Object.create(null); refresh(); });
+
+  SHOUT.meter(document.getElementById('devMeter'), { bars: 16, min: 3, max: 17 }).start();
+})();
+</script>
+</body>
+</html>

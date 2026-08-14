@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en" data-appearance="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Level · Settings — History — shout</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/level.css">
+</head>
+<body>
+
+<header class="pres">
+  <a class="home" href="index.html"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 2.5 3.5 6 7 9.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Concepts</a>
+  <div class="crumb"><b>01 · Level</b><span>Settings — History</span></div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="Appearance">
+    <button data-set-appearance="light">Light</button>
+    <button data-set-appearance="dark">Dark</button>
+  </div>
+</header>
+
+<main class="stage">
+<div class="stage-rail">
+
+<section style="width:min(940px,100%)">
+  <div class="tag">6 · Settings — History</div>
+
+  <div class="win">
+    <div class="side-split">
+
+      <nav class="sidebar band">
+        <div class="tl"><i></i><i></i><i></i></div>
+        <div class="lockup">
+          <span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="wordmark">shout</span>
+        </div>
+
+        <div class="sb-head">Capture</div>
+        <div class="sb-item">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="4" width="13" height="8.5" rx="2"/><path d="M4.5 7h1M7.5 7h1M10.5 7h1M5 10h6" stroke-linecap="round"/></svg>
+          Shortcut
+        </div>
+        <div class="sb-item">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6.2v3.6M8 3.4v9.2M12 5.2v5.6"/></svg>
+          Audio
+        </div>
+
+        <div class="sb-head">Text</div>
+        <div class="sb-item" aria-current="page">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4.6V8l2.4 1.6" stroke-linecap="round"/></svg>
+          History <span class="badge" id="sbCount">241</span>
+        </div>
+        <div class="sb-item">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 5h4.6M10.5 5h3M2.5 11h2.6M8.5 11h5" stroke-linecap="round"/><circle cx="8.8" cy="5" r="1.5"/><circle cx="6.8" cy="11" r="1.5"/></svg>
+          Behaviour
+        </div>
+
+        <div class="sb-head">System</div>
+        <div class="sb-item">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="7" width="9" height="6.4" rx="1.8"/><path d="M5.8 7V5.4a2.2 2.2 0 0 1 4.4 0V7"/></svg>
+          Permissions
+        </div>
+        <div class="sb-version">Version 1.2.0</div>
+      </nav>
+
+      <div class="pane">
+        <div class="pane-head">
+          <div>
+            <h2>History</h2>
+            <p>Everything you have dictated, newest first. Kept on this Mac, capped at 500.</p>
+          </div>
+          <div class="right">
+            <input class="input" id="q" type="search" placeholder="Search" aria-label="Search transcriptions" style="width:172px">
+          </div>
+        </div>
+
+        <div class="filterbar">
+          <div class="chips">
+            <button class="chip" data-f="all" aria-pressed="true">All</button>
+            <button class="chip" data-f="pasted" aria-pressed="false">Pasted</button>
+            <button class="chip" data-f="clipboard" aria-pressed="false">Clipboard</button>
+            <button class="chip" data-f="ignored" aria-pressed="false">Nothing heard</button>
+          </div>
+          <span class="grow"></span>
+          <span class="hint" id="summary">—</span>
+        </div>
+
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr>
+              <th style="width:58px">Time</th>
+              <th>Transcription</th>
+              <th style="width:106px">Spoken</th>
+              <th style="width:92px">Landed in</th>
+              <th style="width:66px">Delay</th>
+              <th style="width:112px"></th>
+            </tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+
+        <div class="pane-foot">
+          <span class="ver">history.jsonl · on this Mac</span>
+          <span class="grow"></span>
+          <button class="btn quiet">Reveal in Finder</button>
+          <button class="btn danger">Clear all…</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="cap" style="margin-top:20px">
+    <h4>Why a table beat the list-and-detail split</h4>
+    <ul>
+      <li><b>Everything is comparable at a glance.</b> Time, what you said, how long you spoke, where it landed and how long transcription took are columns, not one undifferentiated string. The old two-pane version could only ever show you one entry's facts at a time.</li>
+      <li><b>Select expands in place.</b> No detail pane sitting empty on the right — the row opens under itself with the whole transcription, its facts, and Copy / Paste again / Delete. Click it again to collapse.</li>
+      <li><b>The Spoken column is the meter, applied to the archive.</b> A bar as wide as the time you spent talking, so an eleven-second paragraph is findable without reading a word. It stays neutral until the row is selected, then it lights with the peak.</li>
+      <li><b>Filter by outcome.</b> Pasted / clipboard / nothing-heard are already in the app's state model — <span class="mono">Clipboard</span> is the list you open when text went missing.</li>
+      <li><b>Search, day headings, per-row delete, an empty state.</b> All four were absent; nothing truncates at 96 characters any more.</li>
+    </ul>
+    <p style="margin-top:10px">Try it: click a row to open it, type in Search, or switch to <b>Nothing heard</b>.</p>
+  </div>
+</section>
+
+</div>
+</main>
+
+<script src="js/shout.js"></script>
+<script>
+(function () {
+  var data = SHOUT.history.map(function (h, i) { return Object.assign({ id: i }, h); });
+  var filter = 'all', sel = -1;
+  var rows = document.getElementById('rows');
+  var q = document.getElementById('q');
+  var MAXSEC = 12; /* the bar's full width — the longest dictation we keep in view */
+
+  var OUT = {
+    pasted: 'Pasted into the focused field',
+    clipboard: 'Nothing could receive it — put on the clipboard',
+    ignored: 'Ignored — the press was too short to contain speech'
+  };
+
+  function visible() {
+    var s = q.value.trim().toLowerCase();
+    return data.filter(function (h) {
+      if (filter !== 'all' && h.out !== filter) return false;
+      if (!s) return true;
+      return h.text.toLowerCase().indexOf(s) > -1;
+    });
+  }
+
+  function spokenCell(h) {
+    if (!h.sec) return '<span class="c-num">—</span>';
+    var pct = Math.max(6, Math.min(100, (h.sec / MAXSEC) * 100));
+    return '<span class="spoken"><span class="track"><span class="fill" style="width:' + pct.toFixed(0) + '%"></span></span>' +
+           '<span class="c-num">' + h.sec.toFixed(1) + 's</span></span>';
+  }
+
+  function render() {
+    var list = visible();
+    rows.innerHTML = '';
+    document.getElementById('sbCount').textContent = data.length;
+    document.getElementById('summary').textContent =
+      list.length + ' of ' + data.length + ' · ' +
+      list.reduce(function (a, h) { return a + SHOUT.words(h.text); }, 0) + ' words';
+
+    if (!list.length) {
+      rows.innerHTML = '<tr><td colspan="6"><div class="empty"><b>' +
+        (q.value.trim() ? 'No matches' : 'Nothing here yet') + '</b><span>' +
+        (q.value.trim()
+          ? 'Nothing you have dictated contains that. Search looks at the words, not the app they landed in.'
+          : 'Hold Right ⌥ + Right ⌘ anywhere and speak. What you say will appear here.') +
+        '</span></div></td></tr>';
+      return;
+    }
+
+    var lastDay = null;
+    list.forEach(function (h) {
+      if (h.day !== lastDay) {
+        lastDay = h.day;
+        var n = list.filter(function (r) { return r.day === h.day; }).length;
+        var d = document.createElement('tr');
+        d.className = 'day';
+        d.innerHTML = '<td colspan="6"><div class="inner">' + SHOUT.esc(h.day) +
+          '<span>' + SHOUT.esc(h.date) + ' · ' + n + '</span></div></td>';
+        rows.appendChild(d);
+      }
+
+      var tr = document.createElement('tr');
+      tr.className = 'entry';
+      tr.setAttribute('aria-selected', String(h.id === sel));
+      tr.innerHTML =
+        '<td class="c-time">' + h.t + '</td>' +
+        '<td class="c-txt">' + (h.text
+          ? '<span class="clip">' + SHOUT.esc(h.text) + '</span>'
+          : '<span class="none">no speech detected</span>') + '</td>' +
+        '<td>' + spokenCell(h) + '</td>' +
+        '<td class="c-num">' + (h.out === 'clipboard' ? 'Clipboard ⧉' : (h.out === 'ignored' ? '—' : SHOUT.esc(h.app))) + '</td>' +
+        '<td class="c-num">' + (h.ms ? h.ms + ' ms' : '—') + '</td>' +
+        '<td><span class="rowacts">' + (h.text ? '<button data-cp>Copy</button>' : '') +
+          '<button data-del>Delete</button></span></td>';
+
+      tr.addEventListener('click', function (e) {
+        if (e.target.hasAttribute('data-cp')) { SHOUT.copy(h.text, e.target); return; }
+        if (e.target.hasAttribute('data-del')) {
+          data = data.filter(function (r) { return r.id !== h.id; });
+          if (sel === h.id) sel = -1;
+          render(); return;
+        }
+        sel = (sel === h.id) ? -1 : h.id;
+        render();
+      });
+      rows.appendChild(tr);
+
+      if (h.id === sel) {
+        var det = document.createElement('tr');
+        det.className = 'detail';
+        det.innerHTML = '<td colspan="6"><div class="expand">' +
+          (h.text ? '<div class="body">' + SHOUT.esc(h.text) + '</div>' : '') +
+          '<div class="facts">' +
+            '<div><dt>Landed in</dt><dd>' + (h.out === 'clipboard' ? 'Clipboard ⧉' : (h.out === 'ignored' ? '—' : SHOUT.esc(h.app))) + '</dd></div>' +
+            '<div><dt>Spoken</dt><dd>' + h.sec.toFixed(1) + ' s</dd></div>' +
+            '<div><dt>Words</dt><dd>' + (SHOUT.words(h.text) || '—') + '</dd></div>' +
+            '<div><dt>Key-up to text</dt><dd>' + (h.ms ? h.ms + ' ms' : '—') + '</dd></div>' +
+            '<div style="margin-left:auto;align-self:center">' +
+              (h.text ? '<button class="btn" data-cp2>Copy</button> <button class="btn quiet" data-paste>Paste again</button>' : '') +
+            '</div>' +
+          '</div>' +
+          '<p class="hint">' + OUT[h.out] + '. Transcribed on this Mac.</p>' +
+        '</div></td>';
+        det.addEventListener('click', function (e) {
+          if (e.target.hasAttribute('data-cp2')) { SHOUT.copy(h.text, e.target); }
+          if (e.target.hasAttribute('data-paste')) {
+            SHOUT.copy(h.text);
+            e.target.textContent = 'Sent';
+            setTimeout(function () { e.target.textContent = 'Paste again'; }, 1300);
+          }
+        });
+        rows.appendChild(det);
+      }
+    });
+  }
+
+  q.addEventListener('input', render);
+  document.querySelectorAll('.chip').forEach(function (b) {
+    b.addEventListener('click', function () {
+      filter = b.dataset.f;
+      document.querySelectorAll('.chip').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
+      sel = -1;
+      render();
+    });
+  });
+  render();
+})();
+</script>
+</body>
+</html>

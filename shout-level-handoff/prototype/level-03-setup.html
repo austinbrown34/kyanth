@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en" data-appearance="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Level · Setup — shout</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/level.css">
+<style>
+  /* Setup is a first-run window, so it keeps a single pane — but it wears the
+     same slate header, the same grouped boxes and the same footer as Settings. */
+  /* Brand first, at the top-left, exactly where the sidebar puts it in
+     Settings. Progress sits on the opposite end of the headline row, because
+     it is a status readout and not part of the identity. */
+  .setup-head { display: grid; gap: 15px; padding: 2px 22px 22px; }
+  .setup-row { display: flex; align-items: center; gap: 22px; }
+  .setup-row .ring-wrap { margin-left: auto; flex: none; }
+  .setup-head h1 { font-family: var(--font-display); font-size: 19px; font-weight: 590; letter-spacing: -0.015em; }
+  .setup-head p { font-size: 12.5px; margin-top: 4px; max-width: 46ch; line-height: 1.5; }
+  .setup-body { padding: 20px 22px 22px; display: grid; gap: 20px; }
+  .test-out { border: 1px solid var(--border); border-radius: 7px; padding: 11px 13px; background: var(--surface); }
+</style>
+</head>
+<body>
+
+<header class="pres">
+  <a class="home" href="index.html"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 2.5 3.5 6 7 9.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Concepts</a>
+  <div class="crumb"><b>01 · Level</b><span>Setup window</span></div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="Appearance">
+    <button data-set-appearance="light">Light</button>
+    <button data-set-appearance="dark">Dark</button>
+  </div>
+</header>
+
+<main class="stage">
+<div class="stage-rail">
+
+<section style="width:min(620px,100%)">
+  <div class="tag">4 · Setup — grouped, counted, still verification-driven</div>
+
+  <div class="win">
+
+    <div class="band">
+      <div class="win-bar" style="height:34px"><div class="tl"><i></i><i></i><i></i></div></div>
+      <div class="setup-head">
+        <div class="lockup">
+          <span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="wordmark">shout</span>
+        </div>
+        <div class="setup-row">
+          <div>
+            <h1 id="setupTitle">Two things left</h1>
+            <p id="setupSub">Permissions can only be granted by you in System Settings — shout cannot flip those switches on its own.</p>
+          </div>
+          <div class="ring-wrap">
+            <svg class="ring" width="54" height="54" viewBox="0 0 54 54">
+              <circle class="track" cx="27" cy="27" r="23" stroke-width="4"/>
+              <circle class="fill" id="ringFill" cx="27" cy="27" r="23" stroke-width="4" stroke-dasharray="0 145"/>
+            </svg>
+            <span class="num" id="ringNum">5/8</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="setup-body">
+
+      <div class="grp">
+        <div class="phase-head"><h3>Permissions</h3><span class="of" id="ofPerm">2 of 3</span></div>
+        <div class="box blocking" id="boxPerm">
+          <div class="check">
+            <span class="mark-dot done">✓</span>
+            <div><b>Microphone</b><div class="why">Granted. shout opens the stream while the shortcut is held and closes it on release.</div></div>
+          </div>
+          <div class="check">
+            <span class="mark-dot done">✓</span>
+            <div><b>Accessibility</b><div class="why">Granted. This is what lets shout paste into the app in front of you.</div></div>
+          </div>
+          <div class="check blocked" id="stepIM">
+            <span class="mark-dot todo" id="markIM"></span>
+            <div><b>Input Monitoring</b>
+              <div class="why">Not granted. It is what lets shout notice the shortcut while another app is frontmost. macOS will not grant it on shout's behalf.</div>
+            </div>
+            <button class="btn primary" id="btnIM">Open System Settings</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <div class="phase-head"><h3>Hardware &amp; model</h3><span class="of">2 of 3</span></div>
+        <div class="box">
+          <div class="check">
+            <span class="mark-dot done">✓</span>
+            <div><b>Input device</b><div class="why">MacBook Pro Microphone · 48 kHz</div></div>
+          </div>
+          <div class="check">
+            <span class="mark-dot done">✓</span>
+            <div><b>Model server</b><div class="why">Running locally. No audio leaves this Mac.</div></div>
+          </div>
+          <div class="check">
+            <span class="mark-dot warn">!</span>
+            <div><b>Open at Login</b><div class="why">Optional, and it never blocks. Without it shout will not start itself after a restart.</div></div>
+            <button class="btn">Turn on</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <div class="phase-head"><h3>Verification</h3><span class="of" id="ofVer">1 of 2</span></div>
+        <div class="box">
+          <div class="check">
+            <span class="mark-dot done">✓</span>
+            <div><b>Shortcut reaches shout</b><div class="why">Right ⌥ + Right ⌘ received.</div></div>
+          </div>
+          <div class="check" id="stepTest">
+            <span class="mark-dot todo" id="markTest"></span>
+            <div style="min-width:0">
+              <b>Say something</b>
+              <div class="why">Green permissions are not proof. Setup finishes when a real dictation produces real text.</div>
+              <div class="test-out" style="margin-top:10px">
+                <div class="row" style="gap:11px">
+                  <span class="meter" id="testMeter"></span>
+                  <span class="muted" id="testHint" style="font-size:11.5px">Hold the button and say anything.</span>
+                </div>
+                <div id="testText" style="margin-top:8px;display:none;font-size:13.5px;line-height:1.55"></div>
+              </div>
+            </div>
+            <button class="btn" id="btnTest" disabled>Hold to talk</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="pane-foot">
+      <span class="ver">shout 1.2.0</span>
+      <span class="grow"></span>
+      <button class="btn quiet">Do this later</button>
+      <button class="btn primary" id="btnDone" disabled>Finish</button>
+    </div>
+  </div>
+
+  <div class="cap" style="margin-top:20px">
+    <h4>Against the eight-row wall</h4>
+    <ul>
+      <li><b>Brand top-left, progress top-right.</b> The lockup sits where the sidebar puts it in Settings — same size, same gradients, full strength. The ring moved to the opposite end of the headline row because it is a status readout, not part of the identity, and the window title is gone since the lockup already names the app.</li>
+      <li><b>Three phases, three boxes.</b> Permissions, hardware, verification — the grouping tells you which failures you can fix and which ones only System Settings can. It is the same grouped-box shape Settings uses, so the two windows read as one app.</li>
+      <li><b>Progress is explicit.</b> A ring and an <span class="mono">n/8</span> count replace implicit progress; the headline says what is left, not what the window is called.</li>
+      <li><b>One obvious next action.</b> The blocking step owns the primary button, its box carries a blue edge, and it is the only tinted row. The footer keeps one primary and one quiet escape instead of four competing buttons.</li>
+      <li><b>Satisfied steps went slate; only the live step is blue.</b> Seven green ticks shout, and this window's own argument is that green permissions are not proof.</li>
+      <li><b>Step 8 still gates completion.</b> Finish stays disabled until a held key produces text.</li>
+    </ul>
+    <p style="margin-top:10px">Try it: <b>Open System Settings</b> grants the permission the way the real one-second re-poll would, then <b>Hold to talk</b> (or hold the <span class="mono">⌥</span> key) to run the verification.</p>
+  </div>
+</section>
+
+</div>
+</main>
+
+<script src="js/shout.js"></script>
+<script>
+(function () {
+  var CIRC = 2 * Math.PI * 23;
+  var done = 5;
+  function paint() {
+    document.getElementById('ringFill').setAttribute('stroke-dasharray', (CIRC * done / 8).toFixed(1) + ' ' + CIRC);
+    document.getElementById('ringNum').textContent = done + '/8';
+  }
+  paint();
+
+  var meter = SHOUT.meter(document.getElementById('testMeter'), { bars: 13, min: 3, max: 16 });
+  meter.flat(3);
+
+  /* 1 — permission. The real window re-evaluates every second, so the row
+     flips without a relaunch; the delay here stands in for that poll. */
+  document.getElementById('btnIM').addEventListener('click', function () {
+    var b = this;
+    b.disabled = true; b.textContent = 'Waiting…';
+    setTimeout(function () {
+      var mark = document.getElementById('markIM');
+      mark.className = 'mark-dot done'; mark.textContent = '✓';
+      var step = document.getElementById('stepIM');
+      step.classList.remove('blocked');
+      step.querySelector('.why').textContent = 'Granted just now — no relaunch needed.';
+      document.getElementById('boxPerm').classList.remove('blocking');
+      b.remove();
+      document.getElementById('ofPerm').textContent = '3 of 3';
+      done = 6; paint();
+      document.getElementById('setupTitle').textContent = 'One thing left';
+      document.getElementById('setupSub').textContent = 'Everything is wired. Now prove it works by dictating something.';
+      var t = document.getElementById('btnTest');
+      t.disabled = false; t.classList.add('primary');
+      document.getElementById('markTest').className = 'mark-dot live';
+    }, 1200);
+  });
+
+  /* 2 — the verification dictation */
+  var running = false, tId = null;
+  var PHRASE = 'Testing shout — this sentence was dictated, not typed.';
+  function start() {
+    if (document.getElementById('btnTest').disabled || running) return;
+    running = true;
+    document.getElementById('btnTest').textContent = 'Listening…';
+    document.getElementById('testHint').textContent = 'Recording…';
+    document.getElementById('testText').style.display = 'none';
+    meter.start();
+  }
+  function end() {
+    if (!running) return;
+    running = false;
+    meter.stop();
+    document.getElementById('btnTest').textContent = 'Hold to talk';
+    document.getElementById('testHint').textContent = 'Transcribing…';
+    clearTimeout(tId);
+    tId = setTimeout(function () {
+      document.getElementById('testHint').textContent = 'Heard, and pasted into this field:';
+      var out = document.getElementById('testText');
+      out.style.display = 'block';
+      out.textContent = PHRASE;
+      var mark = document.getElementById('markTest');
+      mark.className = 'mark-dot done'; mark.textContent = '✓';
+      document.getElementById('ofVer').textContent = '2 of 2';
+      done = 7; paint();
+      document.getElementById('setupTitle').textContent = 'shout is ready';
+      document.getElementById('setupSub').textContent = 'Open at Login is still off — optional, and it never blocks.';
+      document.getElementById('btnDone').disabled = false;
+      document.getElementById('btnTest').classList.remove('primary');
+    }, 900);
+  }
+  SHOUT.hold(document.getElementById('btnTest'), start, end);
+})();
+</script>
+</body>
+</html>
