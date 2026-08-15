@@ -39,6 +39,20 @@ if [ "$NOTARIZE" -eq 1 ] \
 fi
 
 # ------------------------------------------------------------- 1. vendor
+# A virtualenv bakes absolute paths into its console-script shebangs, so moving
+# or renaming the project directory leaves `pyinstaller` pointing at an
+# interpreter that no longer exists. The kernel then reports "No such file or
+# directory" for the SHEBANG, not for pyinstaller, which reads as though
+# pyinstaller were simply not installed. Recreate it from the lockfile instead.
+if [ -x .venv/bin/pyinstaller ]; then
+  SHEBANG="$(head -1 .venv/bin/pyinstaller | sed 's|^#!||' | cut -d" " -f1)"
+  if [ ! -x "$SHEBANG" ]; then
+    echo "==> virtualenv points at a stale path ($SHEBANG); recreating" >&2
+    rm -rf .venv
+    uv sync >/dev/null || { echo "uv sync failed" >&2; exit 1; }
+  fi
+fi
+
 echo "==> vendoring whisper-server"
 ./vendor_whisper.sh vendor >/dev/null
 
