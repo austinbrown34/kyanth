@@ -17,6 +17,10 @@ NOISE_TOKENS = {"[BLANK_AUDIO]", "[SILENCE]", "(silence)", "[MUSIC]", "[NOISE]",
 class Profile:
     capitalize_first: bool = True
     strip_trailing_period: bool = False
+    #  Terms to bias Whisper toward while this app is frontmost. Dictating
+    #  into a terminal and into Messages are different vocabularies, and the
+    #  prompt window is small enough that narrowing it is worth doing.
+    prompt_terms: tuple[str, ...] = ()
 
 
 class Vocabulary:

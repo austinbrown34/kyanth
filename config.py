@@ -88,6 +88,9 @@ class Config:
     volume: float = 0.35
     input_device: str | None = None
     min_press_ms: int = 250
+    #  Terms fed to Whisper BEFORE it decodes. Unlike `vocabulary`,
+    #  which repairs the output, these bias the decision itself.
+    prompt_terms: tuple[str, ...] = ()
 
     def profile_for(self, app_name: str) -> Profile:
         return self.profiles.get(app_name) or self.profiles.get("default") or Profile()
@@ -108,6 +111,7 @@ def load(path: Path | None = None) -> Config:
         profiles[name] = Profile(
             capitalize_first=p.get("capitalize_first", True),
             strip_trailing_period=p.get("strip_trailing_period", False),
+            prompt_terms=tuple(p.get("prompt_terms") or ()),
         )
 
     settings = load_settings()
@@ -131,4 +135,5 @@ def load(path: Path | None = None) -> Config:
         volume=float(settings.get("volume", 0.35)),
         input_device=settings.get("input_device") or None,
         min_press_ms=int(settings.get("min_press_ms", 250)),
+        prompt_terms=tuple(raw.get("prompt_terms") or ()),
     )

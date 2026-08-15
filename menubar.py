@@ -36,6 +36,7 @@ from settings_ui import SettingsController
 from setup_ui import SetupController
 
 import paths
+import prompting
 
 ROOT = paths.resources()
 LOGDIR = paths.logs()
@@ -350,7 +351,7 @@ class KyanthApp(rumps.App):
         threading.Thread(
             target=kyanth.worker,
             args=(self.jobs, self.cfg, True, self.set_state, self.on_result,
-                  self.cues),
+                  self.cues, self.whisper_prompt),
             daemon=True,
         ).start()
 
@@ -478,7 +479,7 @@ class KyanthApp(rumps.App):
             threading.Thread(
                 target=kyanth.worker,
                 args=(self.jobs, self.cfg, True, self.set_state, self.on_result,
-                      self.cues),
+                      self.cues, self.whisper_prompt),
                 daemon=True,
             ).start()
             self.daemon = kyanth.Daemon(
@@ -913,6 +914,34 @@ class KyanthApp(rumps.App):
         print(f"[settings] hotkey={hk.label()} mode={mode}")
         rumps.notification("Kyanth", "Shortcut updated",
                            f"{'Hold' if mode == MODE_HOLD else 'Toggle'}  {hk.label()}")
+
+    def whisper_prompt(self, app_name: str) -> str:
+        """Terms to bias the decoder toward, for this app, right now.
+
+        Rebuilt only when the history it is mined from actually grows —
+        this runs on the transcription path, between the user releasing the
+        key and the text appearing.
+        """
+        try:
+            count = len(self.store.entries) if self.store else 0
+            key = (app_name, count)
+            if getattr(self, "_prompt_key", None) == key:
+                return self._prompt_cache
+            profile = self.cfg.profile_for(app_name)
+            text = prompting.build(
+                vocab=self.cfg.vocabulary,
+                entries=self.store.entries if self.store else (),
+                app_name=app_name,
+                extra=(tuple(getattr(self.cfg, "prompt_terms", ()))
+                       + tuple(getattr(profile, "prompt_terms", ()))),
+            )
+            self._prompt_key, self._prompt_cache = key, text
+            return text
+        except Exception as exc:
+            #  A prompt is an optimisation. Never let building one stop a
+            #  dictation from being transcribed.
+            print(f"[prompt] skipped: {exc}", flush=True)
+            return ""
 
     def apply_min_press(self, ms: int):
         config_mod.save_settings(self.cfg.hotkey, self.cfg.mode,

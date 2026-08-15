@@ -241,12 +241,21 @@ def write_wav(audio: np.ndarray, path: Path) -> None:
 
 # ---------------------------------------------------------------- stt
 
-def transcribe(path: Path, session: requests.Session) -> str:
+def transcribe(path: Path, session: requests.Session, prompt: str = "") -> str:
+    """`prompt` is Whisper's initial context, not an instruction.
+
+    It biases the decoder toward terms it contains while the audio is still
+    available, which is the only point at which a rare proper noun can still
+    beat the common word it sounds like. Costs ~10 ms.
+    """
+    data = {"response_format": "text"}
+    if prompt:
+        data["prompt"] = prompt
     with open(path, "rb") as f:
         resp = session.post(
             f"http://127.0.0.1:{SERVER_PORT}/inference",
             files={"file": f},
-            data={"response_format": "text"},
+            data=data,
             timeout=60,
         )
     resp.raise_for_status()
@@ -410,18 +419,22 @@ def request_input_monitoring() -> bool:
 # ---------------------------------------------------------------- worker
 
 def worker(jobs: "queue.Queue", cfg: Config, verbose: bool,
-           on_state=None, on_result=None, cues=None) -> None:
+           on_state=None, on_result=None, cues=None, prompt_for=None) -> None:
     """Transcription runs off the event-tap thread. macOS disables a tap whose
     callback runs long, so the tap callback must never block."""
     on_state = on_state or (lambda s: None)
     on_result = on_result or (lambda text, secs, ms: None)
+    #  Supplied by the app, which owns the history the prompt is mined from.
+    #  Kept as a callback so this module stays unaware of storage.
+    prompt_for = prompt_for or (lambda app: "")
     session = requests.Session()
     while True:
         job = jobs.get()
         if job is None:
             return
         try:
-            _handle(job, cfg, session, verbose, on_state, on_result, cues)
+            _handle(job, cfg, session, verbose, on_state, on_result, cues,
+                    prompt_for)
         except Exception:
             # A crash here used to kill the thread outright, which silently
             # disabled dictation for the rest of the session: the hotkey still
@@ -432,7 +445,8 @@ def worker(jobs: "queue.Queue", cfg: Config, verbose: bool,
             on_state("error")
 
 
-def _handle(job, cfg: Config, session, verbose, on_state, on_result, cues=None) -> None:
+def _handle(job, cfg: Config, session, verbose, on_state, on_result, cues=None,
+            prompt_for=None) -> None:
     audio, app_name = job
     raw_secs = len(audio) / SAMPLE_RATE
 
@@ -456,7 +470,8 @@ def _handle(job, cfg: Config, session, verbose, on_state, on_result, cues=None) 
     try:
         t0 = time.perf_counter()
         write_wav(audio, WAV)
-        raw = transcribe(WAV, session)
+        prompt = (prompt_for or (lambda app: ""))(app_name)
+        raw = transcribe(WAV, session, prompt)
         t1 = time.perf_counter()
     except requests.RequestException as e:
         print(f"  ! transcription failed: {e}", file=sys.stderr)

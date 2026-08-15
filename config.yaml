@@ -9,6 +9,28 @@ audio:
   vad_threshold: 0.012      # RMS below this counts as silence
   vad_pad_ms: 150           # keep this much either side of detected speech
 
+# Terms handed to Whisper BEFORE it decodes, as initial context.
+#
+# This is the one place a rare name can still beat the common word it sounds
+# like, because the audio is still available. `vocabulary` below runs after
+# decoding and can only do exact string replacement — which is why "Kyanth"
+# belongs here and NOT as a "client" -> "Kyanth" rule: that would rewrite
+# every sentence where you genuinely said client.
+#
+# Biasing raises a term's odds, it does not force it. Measured on base.en:
+#   without   "I am testing Kianthen to end from the menu bar app."
+#   with      "I am testing Kyanth then to end from the menu bar app."
+# and "The client asked for a refund" is unaffected either way.
+#
+# Your own frequent proper nouns are mined from history automatically; this
+# list is for terms you use before you have said them enough to be learned.
+prompt_terms:
+  - Kyanth
+  - whisper.cpp
+  - AppKit
+  - PyObjC
+  - notarization
+
 # Custom vocabulary. Whisper has no term-injection API, so this is a
 # post-transcription pass — but it fixes the majority of jargon errors,
 # and Voicy offers nothing equivalent at any price.
