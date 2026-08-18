@@ -75,9 +75,12 @@ profiles:
   Terminal:
     capitalize_first: false
     strip_trailing_period: true
+  # cmux is a Claude Code client, not a shell. You write prose into it, so it
+  # gets sentence treatment like Mail or Notes. Grouping it with the terminals
+  # above cost 196 dictations their capital letter and full stop.
   cmux:
-    capitalize_first: false
-    strip_trailing_period: true
+    capitalize_first: true
+    strip_trailing_period: false
   Mail:
     capitalize_first: true
     strip_trailing_period: false
