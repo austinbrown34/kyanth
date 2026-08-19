@@ -125,28 +125,30 @@ def _downscale_grey(src, target_w):
 
 
 def read_window_text(deadline=None):
-    """OCR the focused window. Returns ([(confidence, line)], app_name).
+    """OCR the focused window. Returns ([(confidence, line)], app_name, window_id).
 
     Confidence is carried out rather than discarded because it is the only
-    thing separating a real word from a glyph run. Never raises."""
+    thing separating a real word from a glyph run. The window id comes out so
+    the caller can prove the terms belong to the place the text will land.
+    Never raises."""
     try:
         import Vision
         from Quartz import (CGRectNull, CGWindowListCreateImage,
                             kCGWindowImageBoundsIgnoreFraming,
                             kCGWindowListOptionIncludingWindow)
     except Exception:
-        return [], ""
+        return [], "", None
 
     wid, app_name = _frontmost_window()
     if wid is None or app_name in NEVER_READ:
-        return [], app_name
+        return [], app_name, None
     if deadline and time.monotonic() > deadline:
-        return [], app_name
+        return [], app_name, wid
 
     img = CGWindowListCreateImage(CGRectNull, kCGWindowListOptionIncludingWindow,
                                   wid, kCGWindowImageBoundsIgnoreFraming)
     if img is None:                       # permission revoked, or window gone
-        return [], app_name
+        return [], app_name, wid
 
     small = _downscale_grey(img, OCR_WIDTH)
     handler = Vision.VNImageRequestHandler.alloc().initWithCGImage_options_(small, {})
@@ -157,13 +159,13 @@ def read_window_text(deadline=None):
     req.setUsesLanguageCorrection_(False)
     ok, _err = handler.performRequests_error_([req], None)
     if not ok:
-        return [], app_name
+        return [], app_name, wid
     lines = []
     for r in req.results() or ():
         cands = r.topCandidates_(1)
         if cands:
             lines.append((cands[0].confidence(), cands[0].string()))
-    return lines, app_name
+    return lines, app_name, wid
 
 
 _WORD = re.compile(r"\b[A-Za-z][A-Za-z0-9._+#'-]{2,}\b")
@@ -285,46 +287,93 @@ class Harvester:
     event tap callback is on the critical path and macOS disables a tap whose
     callback runs long. `collect` is called when the audio is ready and waits
     only for whatever time is left.
+
+    Two things make the result untrustworthy unless guarded, and both were
+    observed rather than theorised:
+
+    *The destination can change mid-utterance.* Context is harvested at
+    key-down from whatever is frontmost; the paste target is resolved at
+    key-up. Start speaking in Slack, alt-tab to a terminal, and the terms
+    describe a window the text will never reach. During testing this produced
+    a read of "Universal Control" when the intended target was cmux. Terms
+    from the wrong window are worse than none: they are plausible, so nothing
+    downstream can tell they are wrong.
+
+    *A slow read can outlive its own dictation.* A second `begin` while the
+    first is still in Vision would otherwise let the older thread write its
+    terms over the newer ones. Each read carries the generation it belongs to
+    and drops its result if that has moved on.
     """
 
     def __init__(self, enabled=lambda: False, budget=2.5):
         self.enabled = enabled
         self.budget = budget
+        self._gen = 0
         self._terms = []
         self._app = ""
+        self._window = None
         self._done = threading.Event()
         self._lock = threading.Lock()
 
     def begin(self):
-        if not self.enabled() or not screen_capture_permitted():
-            return
+        #  Bump unconditionally, before the enabled check: a read started while
+        #  the feature was on must not land after it has been switched off.
         with self._lock:
-            self._terms, self._app = [], ""
+            self._gen += 1
+            gen = self._gen
+            self._terms, self._app, self._window = [], "", None
             self._done = threading.Event()
             done = self._done
+        if not self.enabled():
+            done.set()
+            return
         deadline = time.monotonic() + self.budget
 
         def run():
             t0 = time.perf_counter()
             try:
-                lines, app = read_window_text(deadline)
+                #  The permission check is a TCC query and measured 430 ms on
+                #  its first call. It belongs here and not in begin(), which
+                #  runs inside the event-tap callback — macOS disables a tap
+                #  whose callback is slow, which would take dictation down
+                #  with it. Nothing above this line may touch a framework.
+                if not screen_capture_permitted():
+                    done.set()
+                    return
+                lines, app, window = read_window_text(deadline)
                 terms = terms_from(lines) if lines else []
             except Exception as exc:
                 print(f"[context] read failed: {exc}", flush=True)
-                app, terms = "", []
-            with self._lock:
-                self._terms, self._app = terms, app
+                app, window, terms = "", None, []
             ms = (time.perf_counter() - t0) * 1000
+            with self._lock:
+                if gen != self._gen:
+                    print(f"[context] dropped stale read ({ms:.0f}ms, "
+                          f"generation {gen} of {self._gen})", flush=True)
+                    return
+                self._terms, self._app, self._window = terms, app, window
             if terms:
                 print(f"[context] {app}: {len(terms)} terms in {ms:.0f}ms", flush=True)
             done.set()
 
         threading.Thread(target=run, daemon=True).start()
 
-    def collect(self, timeout=0.35):
-        """Terms harvested for this utterance. Waits only for the remainder."""
+    def collect(self, destination="", timeout=0.35):
+        """Terms for this utterance, or nothing if they describe somewhere else.
+
+        `destination` is the app the text is about to be pasted into, resolved
+        at key-up. Matching is by app rather than window: a different window of
+        the same app is a sibling context and still plausibly relevant, while a
+        different app is simply the wrong screen.
+        """
         with self._lock:
             done = self._done
         done.wait(timeout)
         with self._lock:
+            if not self._terms:
+                return []
+            if destination and self._app and destination != self._app:
+                print(f"[context] discarded {len(self._terms)} terms: harvested "
+                      f"from {self._app!r}, pasting into {destination!r}", flush=True)
+                return []
             return list(self._terms)

@@ -947,7 +947,10 @@ class KyanthApp(rumps.App):
                 self._prompt_key = key
             #  Whatever this utterance's harvest found. Waits only for the
             #  remainder of a read already in flight, never starts one.
-            screen = tuple(self.harvester.collect()) if self.harvester else ()
+            #  Pass the paste destination so terms harvested from a window
+            #  the user has since left are discarded rather than applied.
+            screen = (tuple(self.harvester.collect(app_name))
+                      if self.harvester else ())
             if not screen:
                 return self._prompt_base
             return prompting.merge(self._prompt_base, screen)
