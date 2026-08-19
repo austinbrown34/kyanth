@@ -49,7 +49,8 @@ def load_settings() -> dict:
 def save_settings(hotkey: Hotkey, mode: str, sound: bool | None = None,
                   volume: float | None = None,
                   input_device: str | None = ...,
-                  min_press_ms: int | None = None) -> None:
+                  min_press_ms: int | None = None,
+                  screen_context: bool | None = None) -> None:
     current = load_settings()
     #  Start from what is already on disk so keys written by a newer build
     #  survive a save from an older one.
@@ -69,6 +70,8 @@ def save_settings(hotkey: Hotkey, mode: str, sound: bool | None = None,
         #  short to contain speech; the user should be able to move that line.
         "min_press_ms": (current.get("min_press_ms", 250)
                          if min_press_ms is None else int(min_press_ms)),
+        "screen_context": (current.get("screen_context", False)
+                           if screen_context is None else bool(screen_context)),
         "schema": SCHEMA_VERSION,
     })
     SETTINGS_PATH.write_text(json.dumps(data, indent=2) + "\n")
@@ -91,6 +94,9 @@ class Config:
     #  Terms fed to Whisper BEFORE it decodes. Unlike `vocabulary`,
     #  which repairs the output, these bias the decision itself.
     prompt_terms: tuple[str, ...] = ()
+    #  Reading the screen is a real escalation in what the app can see, so
+    #  it stays off until the user turns it on and grants the permission.
+    screen_context: bool = False
 
     def profile_for(self, app_name: str) -> Profile:
         return self.profiles.get(app_name) or self.profiles.get("default") or Profile()
@@ -136,4 +142,5 @@ def load(path: Path | None = None) -> Config:
         input_device=settings.get("input_device") or None,
         min_press_ms=int(settings.get("min_press_ms", 250)),
         prompt_terms=tuple(raw.get("prompt_terms") or ()),
+        screen_context=bool(settings.get("screen_context", False)),
     )

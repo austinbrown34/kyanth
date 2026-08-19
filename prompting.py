@@ -122,11 +122,12 @@ def configured_terms(vocab):
     return terms
 
 
-def build(vocab=None, entries=(), app_name="", extra=()):
+def build(vocab=None, entries=(), app_name="", extra=(), screen=()):
     """Assemble the prompt, highest-confidence terms first.
 
-    Ordering matters because truncation happens at the tail: whatever the user
-    configured explicitly survives, and mined terms fill the remainder.
+    Ordering matters because truncation happens at the tail: the app name and
+    what is on screen survive, and configured then mined terms fill whatever
+    budget is left.
     """
     seen, terms = set(), []
 
@@ -138,6 +139,10 @@ def build(vocab=None, entries=(), app_name="", extra=()):
                 terms.append(t)
 
     add(BASE_TERMS)                             # always, unconfigured
+    #  What is on screen right now outranks both config and history: it is the
+    #  only source that can know a name the user has never dictated before,
+    #  which is the case the other two structurally cannot cover.
+    add(screen)
     add(extra)                                  # per-app, from config
     add(configured_terms(vocab) if vocab else ())
     add(learned_terms(entries))
@@ -152,3 +157,29 @@ def build(vocab=None, entries=(), app_name="", extra=()):
             break
         out += piece
     return out + "."
+
+
+def merge(base, screen):
+    """Splice this utterance's screen terms into an already-built prompt.
+
+    Screen terms go directly after the app's own name, because truncation
+    happens at the tail and a name that is on screen right now is the most
+    likely thing about to be said. Rebuilding the whole prompt per dictation
+    would mean re-mining hundreds of history entries on the paste path.
+    """
+    if not screen:
+        return base
+    body = base[len(LEAD):].rstrip(".") if base.startswith(LEAD) else ""
+    existing = [t.strip() for t in body.split(",") if t.strip()]
+    seen = {t.lower() for t in existing}
+    head = [t for t in BASE_TERMS if t.lower() in seen]
+    fresh = [t for t in screen if t.lower() not in seen]
+    rest = [t for t in existing if t not in head]
+
+    out = LEAD
+    for i, term in enumerate(head + fresh + rest):
+        piece = term if i == 0 else ", " + term
+        if len(out) + len(piece) + 1 > MAX_CHARS:
+            break
+        out += piece
+    return out + "." if len(out) > len(LEAD) else ""

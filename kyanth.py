@@ -509,7 +509,8 @@ class Daemon:
     def __init__(self, recorder: Recorder, jobs: "queue.Queue", verbose: bool,
                  on_state=None, binding: Hotkey | None = None,
                  mode: str = MODE_HOLD, cues=None,
-                 min_press_ms: int = int(MIN_UTTERANCE_SEC * 1000)):
+                 min_press_ms: int = int(MIN_UTTERANCE_SEC * 1000),
+                 on_press=None):
         self.recorder = recorder
         self.jobs = jobs
         self.verbose = verbose
@@ -530,6 +531,11 @@ class Daemon:
         #  result for a press too short to contain speech, so the user should
         #  be able to move that line rather than live with one constant.
         self.min_press_sec = max(0.0, min_press_ms / 1000.0)
+        #  Fired at key-down so slow work (reading the screen) happens while
+        #  the user is still speaking instead of on the paste path. Must
+        #  return immediately: macOS disables an event tap whose callback
+        #  runs long, and this is called from inside that callback.
+        self.on_press = on_press or (lambda: None)
         # Optional observer so a UI can reflect idle/recording without polling.
         self.on_state = on_state or (lambda state: None)
 
@@ -549,6 +555,10 @@ class Daemon:
     def _begin(self):
         self.recording = True
         self.t_press = time.perf_counter()
+        try:
+            self.on_press()
+        except Exception as exc:
+            print(f"[context] press hook failed: {exc}", flush=True)
         if self.cues:
             self.cues.play("start")
         self.recorder.start()

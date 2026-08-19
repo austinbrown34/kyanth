@@ -36,6 +36,7 @@ from settings_ui import SettingsController
 from setup_ui import SetupController
 
 import paths
+import context as screen_context_mod
 import prompting
 
 ROOT = paths.resources()
@@ -220,6 +221,10 @@ class KyanthApp(rumps.App):
         #  None until didFinishLaunching tells us. Unknown is treated as "not
         #  a user launch": a Settings window nobody asked for at every login is
         #  worse than one missing click.
+        #  Reads the focused window while the user speaks, so the ~760ms it
+        #  costs never touches the paste path.
+        self.harvester = screen_context_mod.Harvester(
+            enabled=lambda: bool(getattr(self.cfg, "screen_context", False)))
         self.user_launched = None
         self._ready = False
         self._surfaced = False
@@ -359,6 +364,7 @@ class KyanthApp(rumps.App):
             self.recorder, self.jobs, verbose=True, on_state=self.set_state,
             binding=self.cfg.hotkey, mode=self.cfg.mode, cues=self.cues,
             min_press_ms=self.cfg.min_press_ms,
+            on_press=self.harvester.begin,
         )
         self.daemon.on_hint = lambda title, msg: AppHelper.callAfter(
             rumps.notification, "Kyanth", title, msg)
@@ -486,6 +492,7 @@ class KyanthApp(rumps.App):
                 self.recorder, self.jobs, verbose=True, on_state=self.set_state,
                 binding=self.cfg.hotkey, mode=self.cfg.mode, cues=self.cues,
                 min_press_ms=self.cfg.min_press_ms,
+                on_press=self.harvester.begin,
             )
         if self.install_tap():
             timer.stop()
@@ -918,25 +925,32 @@ class KyanthApp(rumps.App):
     def whisper_prompt(self, app_name: str) -> str:
         """Terms to bias the decoder toward, for this app, right now.
 
-        Rebuilt only when the history it is mined from actually grows —
-        this runs on the transcription path, between the user releasing the
-        key and the text appearing.
+        The cache covers only the parts that are stable between dictations —
+        config, per-app profile, and terms mined from history. Screen terms
+        are collected fresh every time, because they are different every time:
+        caching them would serve the previous window's names, and it would do
+        it silently, since a stale-but-plausible term list looks exactly like
+        a working one.
         """
         try:
             count = len(self.store.entries) if self.store else 0
             key = (app_name, count)
-            if getattr(self, "_prompt_key", None) == key:
-                return self._prompt_cache
-            profile = self.cfg.profile_for(app_name)
-            text = prompting.build(
-                vocab=self.cfg.vocabulary,
-                entries=self.store.entries if self.store else (),
-                app_name=app_name,
-                extra=(tuple(getattr(self.cfg, "prompt_terms", ()))
-                       + tuple(getattr(profile, "prompt_terms", ()))),
-            )
-            self._prompt_key, self._prompt_cache = key, text
-            return text
+            if getattr(self, "_prompt_key", None) != key:
+                profile = self.cfg.profile_for(app_name)
+                self._prompt_base = prompting.build(
+                    vocab=self.cfg.vocabulary,
+                    entries=self.store.entries if self.store else (),
+                    app_name=app_name,
+                    extra=(tuple(getattr(self.cfg, "prompt_terms", ()))
+                           + tuple(getattr(profile, "prompt_terms", ()))),
+                )
+                self._prompt_key = key
+            #  Whatever this utterance's harvest found. Waits only for the
+            #  remainder of a read already in flight, never starts one.
+            screen = tuple(self.harvester.collect()) if self.harvester else ()
+            if not screen:
+                return self._prompt_base
+            return prompting.merge(self._prompt_base, screen)
         except Exception as exc:
             #  A prompt is an optimisation. Never let building one stop a
             #  dictation from being transcribed.
