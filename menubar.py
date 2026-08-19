@@ -968,6 +968,13 @@ class KyanthApp(rumps.App):
             self.daemon.min_press_sec = max(0.0, ms / 1000.0)
         print(f"[settings] min_press={ms}ms")
 
+    def apply_screen_context(self, on: bool):
+        config_mod.save_settings(self.cfg.hotkey, self.cfg.mode,
+                                 sound=self.cues.enabled,
+                                 screen_context=bool(on))
+        self.cfg = config_mod.load()
+        print(f"[settings] screen_context={on}", flush=True)
+
     def apply_sound(self, on: bool):
         self.cues.enabled = bool(on)
         config_mod.save_settings(self.cfg.hotkey, self.cfg.mode, sound=bool(on))

@@ -76,7 +76,8 @@ SOURCES = [
     ("Capture", [("shortcut", "Shortcut", "keyboard"),
                  ("audio", "Audio", "waveform")]),
     ("Text", [("history", "History", "clock"),
-              ("behaviour", "Behaviour", "slider.horizontal.3")]),
+              ("behaviour", "Behaviour", "slider.horizontal.3"),
+              ("intelligence", "Intelligence", "sparkles")]),
     ("System", [("permissions", "Permissions", "lock")]),
 ]
 
@@ -90,6 +91,9 @@ PANE_HEAD = {
                 "Mac, capped at 500."),
     "behaviour": ("Behaviour",
                   "What Kyanth does with the text once it has it."),
+    "intelligence": ("Intelligence",
+                     "Use local context to improve what Kyanth hears. "
+                     "Everything stays on this Mac."),
     "permissions": ("Permissions",
                     "What macOS has granted. Kyanth cannot flip these itself."),
 }
@@ -305,6 +309,7 @@ class SettingsController(NSObject):
         builder = {"shortcut": self._pane_shortcut, "audio": self._pane_audio,
                    "history": self._pane_history,
                    "behaviour": self._pane_behaviour,
+                   "intelligence": self._pane_intelligence,
                    "permissions": self._pane_permissions}[pane]
         chrome.set_text(self.foot_note, builder(), "note", tokens.MUTED)
         self.foot_note.sizeToFit()
@@ -482,6 +487,67 @@ class SettingsController(NSObject):
                      ("Text", [paste_row, vocab_row])])
         return "Changes apply immediately"
 
+    # ---- Intelligence
+
+    @python_method
+    def _pane_intelligence(self):
+        """Only controls that do something.
+
+        The concept has a Smart formatting section and three separate context
+        sources. Two of those sources are not built and neither is Smart
+        formatting, and a switch that looks live but is inert is worse than an
+        absent one — it makes the app claim a capability it does not have.
+        They arrive with the feature.
+        """
+        import context as ctx
+        width = self._pane_width() - PANE_X * 2
+        granted = ctx.screen_capture_permitted()
+        on = bool(getattr(self.app.cfg, "screen_context", False))
+
+        self.ctx_switch = NSSwitch.alloc().initWithFrame_(
+            NSMakeRect(0, 0, 38.0, 22.0))
+        self.ctx_switch.setState_(1 if on else 0)
+        self.ctx_switch.setEnabled_(granted)
+        self.ctx_switch.setTarget_(self)
+        self.ctx_switch.setAction_("contextChanged:")
+        ctx_row, _ = chrome.form_row(
+            width, "Read the active window", [self.ctx_switch],
+            "Kyanth reads the window you are dictating into and uses the names "
+            "it finds — people, projects, services — to recognise them in your "
+            "speech. It is the only way to get a name right the first time you "
+            "say it.", note_indent=True)
+
+        self.ctx_perm = chrome.StatusPill.alloc().initWithFrame_(
+            NSMakeRect(0, 0, 130.0, 24.0))
+        self.ctx_perm.set_state("Granted" if granted else "Not granted", granted)
+        perm_btn = chrome.button("Allow Screen Recording", self, "askScreen:")
+        perm_btn.setHidden_(bool(granted))
+        perm_row, _ = chrome.form_row(
+            width, "Screen Recording", [self.ctx_perm], trailing=perm_btn,
+            note="Reading a window means reading its pixels, which macOS gates "
+                 "behind this permission. Nothing is recorded and no image is "
+                 "written to disk.", note_indent=True)
+
+        scope_row, _ = chrome.form_row(
+            width, "Scope",
+            [chrome.label("The frontmost window only", "rowLabel", tokens.FG)],
+            "Never background apps, never a second display, and never a "
+            "password manager or the keychain. If you change apps while "
+            "speaking, what was read is discarded rather than applied to "
+            "somewhere it does not describe.")
+
+        privacy_row, _ = chrome.form_row(
+            width, "What is kept",
+            [chrome.label("Nothing", "rowLabel", tokens.FG)],
+            "The words read from the screen are used to build one list of "
+            "terms for one dictation, then discarded. They are not saved, not "
+            "written to the log, and never leave this Mac.")
+
+        self._stack([("Context-aware vocabulary",
+                      [ctx_row, perm_row, scope_row, privacy_row])])
+        return ("Reading the screen is off until you turn it on"
+                if not on else "Context is discarded after each paste")
+
     # ---- Permissions
 
     @python_method
@@ -643,6 +709,22 @@ class SettingsController(NSObject):
             sender.setState_(0 if sender.state() else 1)
             chrome.set_text(self.foot_note, msg, "note", tokens.RECORD)
             self.foot_note.sizeToFit()
+
+    def contextChanged_(self, sender):
+        self.app.apply_screen_context(bool(sender.state()))
+        self.select_("intelligence")          # redraw the footer note
+
+    def askScreen_(self, sender):
+        import context as ctx
+        ctx.request_screen_capture()
+        #  The grant lands out of process and macOS does not call back, so the
+        #  pane re-reads it on a short delay rather than claiming success.
+        NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+            1.5, self, "recheckScreen:", None, False)
+
+    def recheckScreen_(self, timer):
+        if self.pane == "intelligence":
+            self.select_("intelligence")
 
     def editConfig_(self, sender):
         subprocess.run(["open", "-t", str(paths.config_file())], check=False)

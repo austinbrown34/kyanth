@@ -93,12 +93,31 @@ def label(text, role, color=None, width=None, x=0.0, y=0.0, wrap=False):
     return f
 
 
+_measure = None
+
+
 def text_height(text, role, width):
-    """Wrapped height for `text` at `role` in `width` points."""
-    s = tokens.attributed(text, role)
-    rect = s.boundingRectWithSize_options_(
-        NSMakeSize(width, 10000), NSStringDrawingUsesLineFragmentOrigin)
-    return math.ceil(rect.size.height) + 2
+    """Wrapped height for `text` at `role` in `width` points.
+
+    Measured with an NSTextField cell rather than boundingRectWithSize_,
+    because the two disagree and the cell is the one that decides. For a
+    three-line note at 384 pt: boundingRect says 42, adding UsesFontLeading
+    says 39, and the control itself lays out at 56. Trusting boundingRect
+    clipped the last line off every wrapped note in the app — visible in the
+    Intelligence pane as a sentence ending mid-clause.
+    """
+    global _measure
+    if _measure is None:
+        _measure = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 0, width, 10))
+        _measure.setBezeled_(False)
+        _measure.setDrawsBackground_(False)
+        _measure.setEditable_(False)
+        _measure.setLineBreakMode_(NSLineBreakByWordWrapping)
+        _measure.cell().setWraps_(True)
+        _measure.cell().setScrollable_(False)
+    _measure.setAttributedStringValue_(tokens.attributed(text, role))
+    size = _measure.cell().cellSizeForBounds_(NSMakeRect(0, 0, width, 10000))
+    return math.ceil(size.height) + 1
 
 
 def set_text(field, text, role, color=None):
