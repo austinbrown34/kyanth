@@ -163,6 +163,20 @@ class SetupController(NSObject):
             kyanth.request_input_monitoring()
             self._open_pane("Privacy_ListenEvent")
 
+        def screen_ok():
+            #  Satisfied when the feature is off, because then there is nothing
+            #  to grant. An amber warning against a capability the user has not
+            #  asked for reads as "something is broken", and this window's
+            #  credibility depends on every warning being real.
+            import context as ctx
+            if not getattr(app.cfg, "screen_context", False):
+                return True
+            return ctx.screen_capture_permitted()
+
+        def screen_act():
+            import context as ctx
+            ctx.request_screen_capture()
+
         def audio_ok():
             #  Normally this just reads the probe done at startup: the check
             #  is polled every second, and opening the device here would flash
@@ -232,6 +246,16 @@ class SetupController(NSObject):
                  "Not granted. Usually needed for the shortcut, but optional — "
                  "if “Shortcut reaches Kyanth” below is satisfied, ignore this.",
                  listen_ok, listen_act, optional=True),
+
+            Step("screen", "Permissions", "Screen Recording",
+                 #  Two very different reasons to be satisfied, so the copy has
+                 #  to say which one applies rather than just "Granted".
+                 "Granted, or not needed — Kyanth only reads the screen when "
+                 "context-aware vocabulary is switched on.",
+                 "Not granted. Context-aware vocabulary is on, and reading the "
+                 "window you are dictating into needs this. Nothing is "
+                 "recorded and no image is written to disk.",
+                 screen_ok, screen_act, "Allow", optional=True),
 
             Step("audio", "Hardware & model", "Input device",
                  "The input device opens. Kyanth releases it again when idle.",

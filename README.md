@@ -218,6 +218,42 @@ Click a row to open it in place: the full transcription, its facts, and **Copy**
 **Paste again** · **Delete**. Click again to collapse. Nothing is truncated. Stored locally
 in `history.jsonl`, capped at 500 entries; **Clear all…** deletes the lot.
 
+### Context-aware vocabulary
+
+Kyanth mishears names it has never seen — a colleague, a service, a project.
+The vocabulary rules below fix that *after* transcription, which only works if
+you can predict the mistake and write a rule for it, and only for terms that
+are not also ordinary words. "Kyanth" was heard as "client", and a
+`client → Kyanth` rule would have wrecked every sentence about an actual client.
+
+**Settings → Intelligence** turns on a better mechanism. While you speak,
+Kyanth reads the window you are dictating into, extracts the names on screen,
+and hands them to Whisper *before* it decodes — the only point at which a rare
+name can still beat the common word it sounds like. Measured on `base.en`:
+
+| | |
+|---|---|
+| without | "I am testing **Kianthen** to end from the menu bar app." |
+| with | "I am testing **Kyanth** then to end from the menu bar app." |
+
+and with the same terms active, *"the client asked for a refund"* is unchanged.
+Biasing raises a term's odds; it does not force it.
+
+It is **off by default** and needs Screen Recording, because reading a window
+means reading its pixels. Nothing is recorded, no image is written to disk, and
+the words are used to build one term list for one dictation and then discarded.
+Password managers and the keychain are never read. If you switch apps while
+speaking, what was read is thrown away rather than applied to a window it does
+not describe.
+
+Accessibility would have been cheaper and needed no permission, but measured
+across the apps on this machine it returns nothing for most of them —
+Electron and terminal apps do not expose their content — so OCR it is.
+
+Run `uv run bench_context.py` to measure the tradeoff yourself. It reports the
+number that matters: words the baseline got **right** and the contextual run got
+**wrong**.
+
 ### Menu-bar icon
 
 Six states, six shapes — the meaning survives without colour, which matters because the
@@ -373,7 +409,10 @@ See [Building from source](#building-from-source) for the full release flow.
 | `menubar.py` | menu-bar app: server lifecycle, state, history |
 | `hotkey.py` | binding representation, matching, chord recorder |
 | `website/` | the kyanth.com landing page — static HTML, no build step |
-| `settings_ui.py` | Cocoa settings window: five panes behind a source list |
+| `settings_ui.py` | Cocoa settings window: six panes behind a source list |
+| `context.py` | reads the focused window and extracts candidate terms |
+| `prompting.py` | assembles the term list Whisper is conditioned on |
+| `bench_context.py` | measures whether contextual prompting helps or harms |
 | `history_view.py` | the History table: columns, search, filters, expand-in-place |
 | `chrome.py` | shared window furniture — band, lockup, ring, grouped boxes |
 | `tokens.py` | the design tokens: colour, type, geometry |
@@ -434,6 +473,10 @@ account, and no network call beyond the one-time model download.
 
 - **Local LLM cleanup** — `llama-server` for filler removal and rewriting
 - **Selection-rewrite hotkey** — copy selection, transform by voice, paste back
+- **Smart formatting** — infer structure (headings, bullets, task lists) from
+  what was said and where it is going
+- **Live capture** — narrate over a screen recording and hand the whole package
+  to an assistant
 - **Vocabulary editor in Settings** — currently requires editing `config.yaml`
 - **Presses that never arrived** — a count of presses another app swallowed, which is a
   different fault from a wrong chord and is currently invisible
